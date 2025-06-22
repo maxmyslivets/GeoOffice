@@ -1,0 +1,30 @@
+site_name: GeoOffice
+site_description: Система для ведения геодезической документации и расчетов
+site_author: GeoOffice Team
+favicon: img/icon.png
+logo: img/icon.png
+nav:
+  - Главная: index.md
+  - Документы:
+      - Обзор: documents.md
+      - Картограмма: cartogram.md
+  - Геодезические работы:
+      - Координаты: coordinates.md
+      - Конвертация: conversion.md
+      - Масштабы: scale.md
+  - Специализированные инструменты:
+      - AutoCAD: autocad.md
+      - Таксация: taxation.md
+  - Настройки: settings.md
+  - Архитектура: architecture.md
+  - Компоненты:
+      - Меню: components_menu.md
+      - Хлебные крошки: components_breadcrumbs.md
+      - Поиск: components_search.md
+      - Статистика: components_stats.md
+  - Сервисы:
+      - Картограмма: service_cartogram.md
+      - Масштабы: service_scale.md
+      - Координаты: service_coordinate.md
+  - Модели данных: models.md
+  - Утилиты: utils.md
