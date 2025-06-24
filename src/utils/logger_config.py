@@ -65,7 +65,7 @@ class GeoOfficeLogger:
         
         # 1. Обработчик для консоли (INFO и выше)
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG)     # Устанавливаем уровень для консоли (по умолчанию INFO)
         console_handler.setFormatter(self.simple_formatter)
         self.logger.addHandler(console_handler)
         

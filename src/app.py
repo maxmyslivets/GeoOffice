@@ -106,47 +106,52 @@ class GeoOfficeApp:
         page.add(main_layout)
         page.update()
 
-        # Обработка URL при загрузке
-        self.handle_initial_url()
+        # # Обработка URL при загрузке
+        # TODO: неактуально
+        # self.handle_initial_url()
 
         # Показ главной страницы по умолчанию
         if not self.current_view:
             self.show_home_page()
 
+        # Переключение меню в свернутый вид
+        self.toggle_menu_visibility()
+
         page.update()
         logger.info("✅ Пользовательский интерфейс инициализирован")
 
-    @log_exception
-    def handle_initial_url(self):
-        """Обработка начального URL"""
-        try:
-            # Получаем URL из адресной строки браузера
-            url = self.page.url
-            logger.debug(f"🔗 Обработка URL: {url}")
-
-            # Проверяем, что это не TCP URL (который используется Flet для соединения)
-            if url and url != "/" and not url.startswith("tcp://"):
-                # Извлекаем путь из URL
-                path = url.strip("/")
-                if path in self.pages:
-                    logger.debug(f"📖 Переход к странице по URL: {path}")
-                    self.show_page(path)
-                else:
-                    logger.warning(f"⚠️ Страница не найдена по URL: {path}")
-                    self.show_home_page()
-            else:
-                logger.debug("🏠 Отображение главной страницы по умолчанию")
-                self.show_home_page()
-        except Exception as e:
-            logger.error(f"❌ Ошибка обработки URL: {e}")
-            self.show_home_page()
+    # TODO: неактуально
+    # @log_exception
+    # def handle_initial_url(self):
+    #     """Обработка начального URL"""
+    #     try:
+    #         # Получаем URL из адресной строки браузера
+    #         url = self.page.url
+    #         logger.debug(f"🔗 Обработка URL: {url}")
+    #
+    #         # Проверяем, что это не TCP URL (который используется Flet для соединения)
+    #         if url and url != "/" and not url.startswith("tcp://"):
+    #             # Извлекаем путь из URL
+    #             path = url.strip("/")
+    #             if path in self.pages:
+    #                 logger.debug(f"📖 Переход к странице по URL: {path}")
+    #                 self.show_page(path)
+    #             else:
+    #                 logger.warning(f"⚠️ Страница не найдена по URL: {path}")
+    #                 self.show_home_page()
+    #         else:
+    #             logger.debug("🏠 Отображение главной страницы по умолчанию")
+    #             self.show_home_page()
+    #     except Exception as e:
+    #         logger.error(f"❌ Ошибка обработки URL: {e}")
+    #         self.show_home_page()
 
     @log_exception
     def create_navigation(self):
         """Создание боковой навигации с категориями"""
         logger.debug("🧭 Создание навигации с категориями")
 
-        # Создаем заголовок меню (убираем дублирующую кнопку)
+        # Создаем заголовок меню
         menu_header = ft.Container(
             content=ft.Row([
                 ft.Icon(ft.Icons.MENU, color=ft.Colors.BLUE, size=24),
@@ -370,6 +375,11 @@ class GeoOfficeApp:
             logger.warning(f"⚠️ Страница {page_name} не найдена")
 
     @log_exception
+    def show_project_page(self, number, name):
+        """Показать страницу объекта по номеру и названию"""
+        logger.debug(f"📖 Отображение страницы объекта: {number} {name}")
+
+    @log_exception
     def update_collapsed_menu_active(self, page_name):
         """Обновление активной страницы в свернутом меню"""
         if hasattr(self, 'collapsed_navigation'):
@@ -378,16 +388,16 @@ class GeoOfficeApp:
             page_to_index = {
                 'home': 2,
                 'documents': 3,
-                'documents_import': 3,  # Все документы используют одну кнопку
+                'documents_import': 3,
                 'documents_export': 3,
                 'documents_archive': 3,
-                'cartogram': 3,  # Картограмма теперь в документах
+                'cartogram': 3,
                 'coordinates': 4,
                 'conversion': 5,
                 'scale': 6,
                 'autocad': 7,
                 'taxation': 8,
-                'settings': 9  # Сдвинули на 1 из-за удаления картограммы
+                'settings': 9
             }
 
             # Обновляем цвета всех кнопок (начиная с индекса 2, после кнопки разворачивания и разделителя)

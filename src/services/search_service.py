@@ -65,40 +65,27 @@ class SearchService:
         else:
             pass
 
-    def search(self, query, root_path, mode="classic", limit=20):
+    def project_search(self, query, limit=50) -> list[tuple[str, str]]:
         """
-        Выполняет поиск файлов и папок по запросу в выбранном режиме.
+        Выполняет поиск объектов по запросу в базе данных.
         :param query: str - поисковый запрос
-        :param root_path: str - путь к директории
-        :param mode: str - режим поиска ('classic', 'morph', 'semantic')
         :param limit: int - максимальное количество результатов
-        :return: list - результаты поиска
+        :return: list - список объектов [(номер, название), ...]
         """
-        logger.debug(f"[search] mode={mode}, query='{query}', root_path={root_path}, limit={limit}")
-        if mode == "semantic":
-            logger.debug("[search] Используется семантический поиск")
-            result = self.semantic_service.search_with_scores(query, limit=limit)
-            logger.debug(f"[search] semantic results: {result}")
-            return result
-        elif mode == "morph":
-            logger.debug("[search] Используется морфологический поиск")
-            result = self.morph_search(query, root_path)
-            logger.debug(f"[search] morph results: {result}")
-            return result
-        else:
-            logger.debug("[search] Используется классический поиск (перебор файлов)")
-            results = []
-            if root_path and query:
-                for dirpath, dirnames, filenames in os.walk(root_path):
-                    for name in dirnames + filenames:
-                        if query.lower() in name.lower():
-                            full_path = os.path.join(dirpath, name)
-                            results.append((full_path, name))
-                            if len(results) >= limit:
-                                logger.debug(f"[search] classic results (truncated): {results}")
-                                return results
-            logger.debug(f"[search] classic results: {results}")
+        logger.debug(f"[search], query='{query}', limit={limit}")
+        results = []
+
+        # WARNING: Заглушка
+        for i in range(1, limit):
+            results.append((f"{i}.25", "Название объекта"))
+        # TODO: Поиск в базе данных
+        # results.append((number, name))
+
+        if len(results) >= limit:
+            logger.debug(f"[search] classic results (truncated): {results}")
             return results
+        logger.debug(f"[search] classic results: {results}")
+        return results
 
     def morph_search(self, query, root_path):
         """

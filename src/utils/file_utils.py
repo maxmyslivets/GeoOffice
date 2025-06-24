@@ -104,4 +104,20 @@ class FileUtils:
             return size
         except Exception as e:
             logger.error(f"❌ Ошибка получения размера файла {file_path}: {str(e)}")
-            return 0 
+            return 0
+
+    @staticmethod
+    @log_exception
+    def open_in_explorer(path):
+        """
+        Открывает указанный путь в проводнике/файловом менеджере ОС.
+        :param path: str
+        """
+        import platform
+        import subprocess
+        if platform.system() == "Windows":
+            subprocess.Popen(f'explorer /select,"{path}"')
+        elif platform.system() == "Darwin":
+            subprocess.Popen(["open", "-R", path])
+        else:
+            subprocess.Popen(["xdg-open", os.path.dirname(path)])
