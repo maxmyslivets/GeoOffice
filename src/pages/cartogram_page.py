@@ -8,8 +8,6 @@ import os
 from datetime import datetime
 from src.utils.logger_config import log_exception
 
-logger = logging.getLogger(__name__)
-
 
 class CartogramPage(BasePage):
     """Страница создания картограмм"""
@@ -58,46 +56,47 @@ class CartogramPage(BasePage):
         self.logger.info("✅ Страница картограммы инициализирована")
 
     def get_content(self):
-        self.logger.debug("📄 Создание контента страницы картограммы")
-        return ft.Column([
-            *self.controls,
-            ft.Text("Создание картограммы", size=24, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20),
-            ft.Row([
-                ft.ElevatedButton("Загрузить DXF", icon=ft.Icons.FILE_OPEN, on_click=self.open_file_picker),
-                ft.ElevatedButton("Создать сетку", icon=ft.Icons.GRID_ON, on_click=self.create_grid),
-                ft.ElevatedButton("Сохранить в DXF", icon=ft.Icons.SAVE, on_click=self.open_save_picker),
-                ft.ElevatedButton("Очистить", icon=ft.Icons.CLEAR, on_click=self.clear_all),
-            ]),
-            ft.Divider(height=20),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Настройки", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            self.grid_size_field,
-                            self.coordinate_system_dropdown,
-                        ]),
-                    ]),
-                    padding=20
-                )
-            ),
-            ft.Divider(height=20),
-            ft.Row([
-                ft.Column([
-                    ft.Text("Информация", size=18, weight=ft.FontWeight.BOLD),
-                    self.info_text,
-                    ft.Divider(height=20),
-                    ft.Text("Логи", size=16, weight=ft.FontWeight.BOLD),
-                    self.log_text,
-                ], expand=True),
-                ft.VerticalDivider(width=1),
-                ft.Column([
-                    ft.Text("Список номенклатур", size=18, weight=ft.FontWeight.BOLD),
-                    self.nomenclature_text,
-                ], expand=True),
-            ], expand=True),
-        ])
+        # self.logger.debug("📄 Создание контента страницы картограммы")
+        # return ft.Column([
+        #     *self.controls,
+        #     ft.Text("Создание картограммы", size=24, weight=ft.FontWeight.BOLD),
+        #     ft.Divider(height=20),
+        #     ft.Row([
+        #         ft.ElevatedButton("Загрузить DXF", icon=ft.Icons.FILE_OPEN, on_click=self.open_file_picker),
+        #         ft.ElevatedButton("Создать сетку", icon=ft.Icons.GRID_ON, on_click=self.create_grid),
+        #         ft.ElevatedButton("Сохранить в DXF", icon=ft.Icons.SAVE, on_click=self.open_save_picker),
+        #         ft.ElevatedButton("Очистить", icon=ft.Icons.CLEAR, on_click=self.clear_all),
+        #     ]),
+        #     ft.Divider(height=20),
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Настройки", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Row([
+        #                     self.grid_size_field,
+        #                     self.coordinate_system_dropdown,
+        #                 ]),
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #     ft.Divider(height=20),
+        #     ft.Row([
+        #         ft.Column([
+        #             ft.Text("Информация", size=18, weight=ft.FontWeight.BOLD),
+        #             self.info_text,
+        #             ft.Divider(height=20),
+        #             ft.Text("Логи", size=16, weight=ft.FontWeight.BOLD),
+        #             self.log_text,
+        #         ], expand=True),
+        #         ft.VerticalDivider(width=1),
+        #         ft.Column([
+        #             ft.Text("Список номенклатур", size=18, weight=ft.FontWeight.BOLD),
+        #             self.nomenclature_text,
+        #         ], expand=True),
+        #     ], expand=True),
+        # ])
+        return ft.Text("Страница в разработке...", color=ft.Colors.RED, size=20)
 
     @log_exception
     def open_file_picker(self, e=None):
@@ -130,14 +129,14 @@ class CartogramPage(BasePage):
                 
                 self.update_info()
                 self.log_message(f"Загружен файл: {os.path.basename(self.dxf_file_path)} (система координат: {coordinate_system})")
-                self.show_info("Файл DXF загружен успешно!")
+                self.app.show_info("Файл DXF загружен успешно!")
                 self.update_page()
                 
                 self.logger.info(f"✅ Файл DXF успешно загружен: {os.path.basename(self.dxf_file_path)}")
             except Exception as ex:
                 self.logger.error(f"❌ Ошибка при загрузке файла: {str(ex)}")
                 self.log_message(f"Ошибка при загрузке файла: {str(ex)}")
-                self.show_error(f"Ошибка при загрузке файла: {str(ex)}")
+                self.app.show_error(f"Ошибка при загрузке файла: {str(ex)}")
         else:
             self.logger.info("❌ Файл не выбран")
 
@@ -146,7 +145,7 @@ class CartogramPage(BasePage):
         try:
             if not self.current_cartogram:
                 self.logger.warning("⚠️ Попытка создать сетку без загруженного файла")
-                self.show_warning("Сначала загрузите DXF файл")
+                self.app.show_warning("Сначала загрузите DXF файл")
                 return
                 
             grid_size = int(self.grid_size_field.value or 250)
@@ -166,14 +165,14 @@ class CartogramPage(BasePage):
             self.update_info()
             self.update_nomenclature_list()
             self.log_message(f"Создана сетка: {len(grid_cells)} ячеек")
-            self.show_info("Сетка создана успешно!")
+            self.app.show_info("Сетка создана успешно!")
             self.update_page()
             
             self.logger.info(f"✅ Сетка создана успешно: {len(grid_cells)} ячеек, {len(nomenclature_list)} номенклатур")
         except Exception as ex:
             self.logger.error(f"❌ Ошибка при создании сетки: {str(ex)}")
             self.log_message(f"Ошибка при создании сетки: {str(ex)}")
-            self.show_error(f"Ошибка при создании сетки: {str(ex)}")
+            self.app.show_error(f"Ошибка при создании сетки: {str(ex)}")
 
     @log_exception
     def open_save_picker(self, e=None):
@@ -192,17 +191,17 @@ class CartogramPage(BasePage):
                     e.path
                 )
                 self.log_message(f"Сетка сохранена в файл: {os.path.basename(e.path)}")
-                self.show_info(f"Сетка сохранена в файл: {os.path.basename(e.path)}")
+                self.app.show_info(f"Сетка сохранена в файл: {os.path.basename(e.path)}")
                 self.update_page()
                 
                 self.logger.info(f"✅ Сетка успешно сохранена: {os.path.basename(e.path)}")
             except Exception as ex:
                 self.logger.error(f"❌ Ошибка при сохранении файла: {str(ex)}")
                 self.log_message(f"Ошибка при сохранении файла: {str(ex)}")
-                self.show_error(f"Ошибка при сохранении файла: {str(ex)}")
+                self.app.show_error(f"Ошибка при сохранении файла: {str(ex)}")
         else:
             self.logger.warning("⚠️ Нет данных для сохранения")
-            self.show_warning("Нет данных для сохранения!")
+            self.app.show_warning("Нет данных для сохранения!")
 
     @log_exception
     def clear_all(self, e=None):
@@ -228,7 +227,7 @@ class CartogramPage(BasePage):
                 self.logger.info(f"✅ Система координат изменена: {e.control.value}")
             except Exception as ex:
                 self.logger.error(f"❌ Ошибка при изменении системы координат: {str(ex)}")
-                self.show_error(f"Ошибка при изменении системы координат: {str(ex)}")
+                self.app.show_error(f"Ошибка при изменении системы координат: {str(ex)}")
 
     @log_exception
     def update_info(self):

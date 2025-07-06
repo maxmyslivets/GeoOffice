@@ -1,11 +1,11 @@
 import numpy as np
-import logging
 from typing import List, Tuple, Dict
 from shapely.geometry import box, Polygon, MultiPolygon, Point
 import ezdxf
 from src.models.cartogram_models import CartogramData, GridCell, NomenclatureInfo
+from src.utils.logger_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("services.cartogram_service")
 
 
 class CartogramService:

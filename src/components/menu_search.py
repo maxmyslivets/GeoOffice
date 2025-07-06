@@ -1,7 +1,7 @@
 import flet as ft
 from src.utils.logger_config import get_logger
 
-logger = get_logger("menu_search")
+logger = get_logger("components.menu_search")
 
 
 class MenuSearch:

@@ -1,5 +1,7 @@
 import os
 import json
+import subprocess
+import platform
 from typing import Dict, Any, Optional
 from pathlib import Path
 from src.utils.logger_config import get_logger, log_exception
@@ -14,7 +16,7 @@ class FileUtils:
     
     @staticmethod
     @log_exception
-    def save_json(data: Dict[str, Any], filename: str) -> bool:
+    def save_json(data: Dict[str, Any], filename: str | Path) -> bool:
         """
         Сохраняет данные в JSON-файл.
         :param data: Словарь с данными
@@ -33,7 +35,7 @@ class FileUtils:
     
     @staticmethod
     @log_exception
-    def load_json(filename: str) -> Optional[Dict[str, Any]]:
+    def load_json(filename: str | Path) -> Optional[Dict[str, Any]]:
         """
         Загружает данные из JSON-файла.
         :param filename: Имя файла для загрузки
@@ -113,11 +115,82 @@ class FileUtils:
         Открывает указанный путь в проводнике/файловом менеджере ОС.
         :param path: str
         """
-        import platform
-        import subprocess
         if platform.system() == "Windows":
             subprocess.Popen(f'explorer /select,"{path}"')
         elif platform.system() == "Darwin":
             subprocess.Popen(["open", "-R", path])
         else:
             subprocess.Popen(["xdg-open", os.path.dirname(path)])
+
+    @staticmethod
+    @log_exception
+    def open_folder(path):
+        """
+        Открывает указанный путь в проводнике/файловом менеджере ОС.
+        :param path: str
+        """
+        subprocess.Popen(f'explorer "{path}"')
+
+    @staticmethod
+    @log_exception
+    def manage_file_attributes(file_path: str, action: str = "show") -> Dict[str, Any]:
+        """
+        Управление атрибутами файла в Windows.
+        :param file_path: Путь к файлу
+        :param action: Действие ("show", "hide", "protect", "unprotect")
+        :return: Словарь с результатом
+        """
+        path = Path(file_path)
+        result = {
+            'file_path': str(path),
+            'exists': path.exists(),
+            'action': action,
+            'success': False,
+            'attributes_before': None,
+            'attributes_after': None,
+            'error': None
+        }
+
+        if not path.exists():
+            result['error'] = "Файл не существует"
+            return result
+
+        try:
+            # Получаем атрибуты до изменения
+            attrib_result = subprocess.run(['attrib', str(path)],
+                                           capture_output=True, text=True, check=True)
+            result['attributes_before'] = attrib_result.stdout.strip()
+
+            # Выполняем действие
+            if action == "show":
+                # Сделать видимым (снять скрытый и системный)
+                subprocess.run(['attrib', '-h', '-s', str(path)], check=True)
+                result['message'] = "Файл сделан видимым"
+
+            elif action == "hide":
+                # Сделать скрытым
+                subprocess.run(['attrib', '+h', str(path)], check=True)
+                result['message'] = "Файл скрыт"
+
+            elif action == "protect":
+                # Защитить (скрытый + системный)
+                subprocess.run(['attrib', '+h', '+s', str(path)], check=True)
+                result['message'] = "Файл защищен"
+
+            elif action == "unprotect":
+                # Снять защиту
+                subprocess.run(['attrib', '-h', '-s', '-r', str(path)], check=True)
+                result['message'] = "Защита снята"
+
+            # Получаем атрибуты после изменения
+            attrib_result = subprocess.run(['attrib', str(path)],
+                                           capture_output=True, text=True, check=True)
+            result['attributes_after'] = attrib_result.stdout.strip()
+            result['success'] = True
+
+        except subprocess.CalledProcessError as e:
+            result['error'] = f"Ошибка выполнения команды: {e}"
+        except Exception as e:
+            result['error'] = f"Неожиданная ошибка: {e}"
+
+        return result

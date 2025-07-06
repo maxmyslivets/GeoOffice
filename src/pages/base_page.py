@@ -8,7 +8,8 @@ class BasePage(ABC):
     Базовый абстрактный класс для всех страниц приложения GeoOffice.
     Определяет базовые методы для работы с UI и уведомлениями.
     """
-    
+
+    @log_exception
     def __init__(self, app):
         """
         Инициализация базовой страницы.
@@ -16,7 +17,6 @@ class BasePage(ABC):
         """
         self.app = app
         self.page = app.page
-        self.data = app.data
         self._content = None
         
         # Получаем логгер для конкретной страницы
@@ -49,50 +49,6 @@ class BasePage(ABC):
         return content
     
     @log_exception
-    def show_snack_bar(self, message):
-        """
-        Показать уведомление пользователю.
-        :param message: Текст уведомления
-        """
-        self.logger.debug(f"💬 Показ уведомления: {message}")
-        self.app.show_snack_bar(message)
-    
-    @log_exception
-    def show_error(self, error_message):
-        """
-        Показать ошибку пользователю.
-        :param error_message: Текст ошибки
-        """
-        self.logger.error(f"❌ Ошибка: {error_message}")
-        self.app.show_error(error_message)
-    
-    @log_exception
-    def show_warning(self, warning_message):
-        """
-        Показать предупреждение пользователю.
-        :param warning_message: Текст предупреждения
-        """
-        self.logger.warning(f"⚠️ Предупреждение: {warning_message}")
-        self.app.show_warning(warning_message)
-    
-    @log_exception
-    def show_info(self, info_message):
-        """
-        Показать информационное сообщение пользователю.
-        :param info_message: Текст информационного сообщения
-        """
-        self.logger.info(f"ℹ️ Информация: {info_message}")
-        self.app.show_snack_bar(info_message)
-    
-    @log_exception
-    def save_data(self):
-        """
-        Сохранить данные приложения.
-        """
-        self.logger.debug("💾 Сохранение данных приложения")
-        self.app.save_data()
-    
-    @log_exception
     def update_page(self):
         """
         Обновить страницу (UI).
@@ -102,4 +58,4 @@ class BasePage(ABC):
             self.page.update()
             self.logger.debug("✅ Страница обновлена")
         else:
-            self.logger.warning("⚠️ Страница не инициализирована") 
+            self.logger.warning("⚠️ Страница не инициализирована")

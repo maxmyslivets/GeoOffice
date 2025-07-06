@@ -13,43 +13,44 @@ class DocumentsPage(BasePage):
         Возвращает содержимое страницы документов (UI).
         :return: Flet Column с элементами интерфейса
         """
-        return ft.Column([
-            ft.Text("Работа с документами", size=24, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20),
-            
-            ft.Row([
-                ft.ElevatedButton("Создать отчет", icon=ft.Icons.ADD, on_click=self.create_report),
-                ft.ElevatedButton("Создать картограмму", icon=ft.Icons.MAP, on_click=self.create_cartogram),
-                ft.ElevatedButton("Техническое задание", icon=ft.Icons.ASSIGNMENT, on_click=self.create_technical_task),
-            ]),
-            
-            ft.Divider(height=20),
-            
-            ft.Text("Шаблоны документов", size=18, weight=ft.FontWeight.BOLD),
-            ft.DataTable(
-                columns=[
-                    ft.DataColumn(ft.Text("Название")),
-                    ft.DataColumn(ft.Text("Описание")),
-                    ft.DataColumn(ft.Text("Действия")),
-                ],
-                rows=[
-                    ft.DataRow(
-                        cells=[
-                            ft.DataCell(ft.Text("Отчет о геодезических работах")),
-                            ft.DataCell(ft.Text("Стандартный отчет по результатам измерений")),
-                            ft.DataCell(ft.ElevatedButton("Использовать", on_click=self.use_template)),
-                        ]
-                    ),
-                    ft.DataRow(
-                        cells=[
-                            ft.DataCell(ft.Text("Картограмма участка")),
-                            ft.DataCell(ft.Text("План участка с нанесенными точками")),
-                            ft.DataCell(ft.ElevatedButton("Использовать", on_click=self.use_template)),
-                        ]
-                    ),
-                ]
-            )
-        ])
+        # return ft.Column([
+        #     ft.Text("Работа с документами", size=24, weight=ft.FontWeight.BOLD),
+        #     ft.Divider(height=20),
+        #
+        #     ft.Row([
+        #         ft.ElevatedButton("Создать отчет", icon=ft.Icons.ADD, on_click=self.create_report),
+        #         ft.ElevatedButton("Создать картограмму", icon=ft.Icons.MAP, on_click=self.create_cartogram),
+        #         ft.ElevatedButton("Техническое задание", icon=ft.Icons.ASSIGNMENT, on_click=self.create_technical_task),
+        #     ]),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     ft.Text("Шаблоны документов", size=18, weight=ft.FontWeight.BOLD),
+        #     ft.DataTable(
+        #         columns=[
+        #             ft.DataColumn(ft.Text("Название")),
+        #             ft.DataColumn(ft.Text("Описание")),
+        #             ft.DataColumn(ft.Text("Действия")),
+        #         ],
+        #         rows=[
+        #             ft.DataRow(
+        #                 cells=[
+        #                     ft.DataCell(ft.Text("Отчет о геодезических работах")),
+        #                     ft.DataCell(ft.Text("Стандартный отчет по результатам измерений")),
+        #                     ft.DataCell(ft.ElevatedButton("Использовать", on_click=self.use_template)),
+        #                 ]
+        #             ),
+        #             ft.DataRow(
+        #                 cells=[
+        #                     ft.DataCell(ft.Text("Картограмма участка")),
+        #                     ft.DataCell(ft.Text("План участка с нанесенными точками")),
+        #                     ft.DataCell(ft.ElevatedButton("Использовать", on_click=self.use_template)),
+        #                 ]
+        #             ),
+        #         ]
+        #     )
+        # ])
+        return ft.Text("Страница в разработке...", color=ft.Colors.RED, size=20)
     
     def create_report(self, e=None):
         """

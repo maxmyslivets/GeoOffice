@@ -38,28 +38,29 @@ class CoordinatesPage(BasePage):
         Возвращает содержимое страницы координат (UI).
         :return: Flet Column с элементами интерфейса
         """
-        return ft.Column([
-            ft.Text("Работа с системами координат", size=24, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20),
-            
-            ft.Row([
-                ft.ElevatedButton("Создать файл пересчета", icon=ft.Icons.CREATE, on_click=self.create_conversion_file),
-                ft.ElevatedButton("Proj-файл для Metashape", icon=ft.Icons.FILE_COPY, on_click=self.create_metashape_file),
-                ft.ElevatedButton("DJI Terra файл", icon=ft.Icons.FLIGHT, on_click=self.create_dji_file),
-            ]),
-            
-            ft.Divider(height=20),
-            
-            ft.Text("Форматирование координат", size=18, weight=ft.FontWeight.BOLD),
-            self.input_field,
-            ft.Row([
-                ft.ElevatedButton("Форматировать", icon=ft.Icons.FORMAT_ALIGN_LEFT, on_click=self.format_coordinates),
-                ft.ElevatedButton("Очистить", icon=ft.Icons.CLEAR, on_click=self.clear_coordinates),
-                ft.ElevatedButton("Пример", icon=ft.Icons.INSERT_DRIVE_FILE, on_click=self.load_example),
-            ]),
-            self.error_text,
-            self.result_field,
-        ])
+        # return ft.Column([
+        #     ft.Text("Работа с системами координат", size=24, weight=ft.FontWeight.BOLD),
+        #     ft.Divider(height=20),
+        #
+        #     ft.Row([
+        #         ft.ElevatedButton("Создать файл пересчета", icon=ft.Icons.CREATE, on_click=self.create_conversion_file),
+        #         ft.ElevatedButton("Proj-файл для Metashape", icon=ft.Icons.FILE_COPY, on_click=self.create_metashape_file),
+        #         ft.ElevatedButton("DJI Terra файл", icon=ft.Icons.FLIGHT, on_click=self.create_dji_file),
+        #     ]),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     ft.Text("Форматирование координат", size=18, weight=ft.FontWeight.BOLD),
+        #     self.input_field,
+        #     ft.Row([
+        #         ft.ElevatedButton("Форматировать", icon=ft.Icons.FORMAT_ALIGN_LEFT, on_click=self.format_coordinates),
+        #         ft.ElevatedButton("Очистить", icon=ft.Icons.CLEAR, on_click=self.clear_coordinates),
+        #         ft.ElevatedButton("Пример", icon=ft.Icons.INSERT_DRIVE_FILE, on_click=self.load_example),
+        #     ]),
+        #     self.error_text,
+        #     self.result_field,
+        # ])
+        return ft.Text("Страница в разработке...", color=ft.Colors.RED, size=20)
     
     def create_conversion_file(self, e=None):
         """

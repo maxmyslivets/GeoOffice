@@ -2,6 +2,11 @@
 
 ## UV
 
+### Запуск окружения
+```shell
+.venv/Scripts/activate
+```
+
 ### Установка пакетов
 ```shell
 uv pip install flet

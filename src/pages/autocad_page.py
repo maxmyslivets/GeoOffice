@@ -13,34 +13,35 @@ class AutocadPage(BasePage):
         Возвращает содержимое страницы AutoCAD (UI).
         :return: Flet Column с элементами интерфейса
         """
-        return ft.Column([
-            ft.Text("Плагины AutoCAD", size=24, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20),
-            
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Расстановка мультивыносок", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Автоматическая расстановка выносок на чертеже", color=ft.Colors.GREY_600),
-                        ft.ElevatedButton("Установить плагин", icon=ft.Icons.DOWNLOAD, on_click=self.install_multileader_plugin),
-                    ]),
-                    padding=20
-                )
-            ),
-            
-            ft.Divider(height=20),
-            
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Подписи координат", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Автоматическое нанесение координат на чертеж", color=ft.Colors.GREY_600),
-                        ft.ElevatedButton("Установить плагин", icon=ft.Icons.DOWNLOAD, on_click=self.install_coordinates_plugin),
-                    ]),
-                    padding=20
-                )
-            )
-        ])
+        # return ft.Column([
+        #     ft.Text("Плагины AutoCAD", size=24, weight=ft.FontWeight.BOLD),
+        #     ft.Divider(height=20),
+        #
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Расстановка мультивыносок", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Text("Автоматическая расстановка выносок на чертеже", color=ft.Colors.GREY_600),
+        #                 ft.ElevatedButton("Установить плагин", icon=ft.Icons.DOWNLOAD, on_click=self.install_multileader_plugin),
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Подписи координат", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Text("Автоматическое нанесение координат на чертеж", color=ft.Colors.GREY_600),
+        #                 ft.ElevatedButton("Установить плагин", icon=ft.Icons.DOWNLOAD, on_click=self.install_coordinates_plugin),
+        #             ]),
+        #             padding=20
+        #         )
+        #     )
+        # ])
+        return ft.Text("Страница в разработке...", color=ft.Colors.RED, size=20)
     
     def install_multileader_plugin(self, e=None):
         """

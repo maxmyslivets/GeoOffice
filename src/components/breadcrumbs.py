@@ -1,7 +1,7 @@
 import flet as ft
 from src.utils.logger_config import get_logger
 
-logger = get_logger("breadcrumbs")
+logger = get_logger("components.breadcrumbs")
 
 
 class Breadcrumbs:
@@ -19,7 +19,7 @@ class Breadcrumbs:
         
         # Маппинг страниц на их категории и названия
         self.page_mapping = {
-            "home": {"category": "Главная", "name": "Главная страница"},
+            "home": {"name": "Главная страница"},
             "documents": {"category": "Документы", "name": "Управление документами"},
             "documents_import": {"category": "Документы", "name": "Импорт файлов"},
             "documents_export": {"category": "Документы", "name": "Экспорт данных"},
@@ -39,11 +39,7 @@ class Breadcrumbs:
         :param current_page: Имя текущей страницы
         :return: Flet Container с хлебными крошками
         """
-        if current_page not in self.page_mapping:
-            return ft.Container()
-        
-        page_info = self.page_mapping[current_page]
-        
+
         # Создаём интерактивные элементы хлебных крошек
         home_link = ft.Container(
             content=ft.Row([
@@ -55,24 +51,30 @@ class Breadcrumbs:
             border_radius=4,
             padding=ft.padding.only(left=5, right=5, top=2, bottom=2)
         )
+
+        breadcrumbs_row = [home_link]
+
+        if current_page in self.page_mapping:
+            page_info = self.page_mapping[current_page]
+            if "category" in self.page_mapping[current_page]:
+                category_link = ft.Container(
+                    content=ft.Text(page_info["category"], size=12, color=ft.Colors.BLUE, weight=ft.FontWeight.BOLD),
+                    on_click=lambda e: self.navigate_to_category(page_info["category"]),
+                    ink=True,
+                    border_radius=4,
+                    padding=ft.padding.only(left=5, right=5, top=2, bottom=2)
+                )
+                breadcrumbs_row.extend([ft.Icon(ft.Icons.CHEVRON_RIGHT, size=12, color=ft.Colors.GREY_400),
+                                        category_link])
+            current_page_text = ft.Text(page_info["name"], size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700)
+            breadcrumbs_row.extend([ft.Icon(ft.Icons.CHEVRON_RIGHT, size=12, color=ft.Colors.GREY_400),
+                                    current_page_text])
+        else:
+            current_page_text = ft.Text(current_page, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700)
+            breadcrumbs_row.extend([ft.Icon(ft.Icons.CHEVRON_RIGHT, size=12, color=ft.Colors.GREY_400),
+                                    current_page_text])
         
-        category_link = ft.Container(
-            content=ft.Text(page_info["category"], size=12, color=ft.Colors.BLUE, weight=ft.FontWeight.BOLD),
-            on_click=lambda e: self.navigate_to_category(page_info["category"]),
-            ink=True,
-            border_radius=4,
-            padding=ft.padding.only(left=5, right=5, top=2, bottom=2)
-        )
-        
-        current_page_text = ft.Text(page_info["name"], size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700)
-        
-        breadcrumbs = ft.Row([
-            home_link,
-            ft.Icon(ft.Icons.CHEVRON_RIGHT, size=12, color=ft.Colors.GREY_400),
-            category_link,
-            ft.Icon(ft.Icons.CHEVRON_RIGHT, size=12, color=ft.Colors.GREY_400),
-            current_page_text,
-        ], spacing=5)
+        breadcrumbs = ft.Row([*breadcrumbs_row], spacing=5)
         
         return ft.Container(
             content=breadcrumbs,
@@ -98,7 +100,6 @@ class Breadcrumbs:
         
         # Маппинг категорий на первую страницу
         category_to_page = {
-            "Главная": "home",
             "Документы": "documents",
             "Геодезические работы": "coordinates",
             "Специализированные инструменты": "autocad",

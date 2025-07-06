@@ -1,10 +1,15 @@
-# Инициализация логирования
-from src.utils.logger_config import setup_logging, get_logger, log_exception
-
 import flet as ft
-import os
-import json
-from datetime import datetime
+from pathlib import Path
+
+from src.models.settings_model import Settings
+from src.services.database_service import DataBaseProjectService
+
+from src.utils.logger_config import setup_logging, get_logger, log_exception
+from src.utils.file_utils import FileUtils
+
+from src.components.categorized_menu import CategorizedMenu
+from src.components.breadcrumbs import Breadcrumbs
+from src.components.menu_search import MenuSearch
 
 from src.pages.home_page import HomePage
 from src.pages.documents_page import DocumentsPage
@@ -15,74 +20,85 @@ from src.pages.taxation_page import TaxationPage
 from src.pages.settings_page import SettingsPage
 from src.pages.scale_page import ScalePage
 from src.pages.cartogram_page import CartogramPage
-from src.utils.file_utils import FileUtils
-from src.components.categorized_menu import CategorizedMenu
-from src.components.breadcrumbs import Breadcrumbs
-from src.components.usage_stats import UsageStats
-from src.components.menu_search import MenuSearch
+
 
 # Настройка логирования
 logger = get_logger("main")
 
 
 class GeoOfficeApp:
+    @log_exception
     def __init__(self):
         logger.info("🔧 Инициализация приложения GeoOffice")
         self.page = None
         self.current_view = None
-        self.data = self.load_data()
+
+        # Меню с категориями
+        self.categorized_menu = None
+        # Контейнер для меню
+        self.navigation = None
+        # Свернутое меню с кнопкой разворачивания вверху
+        self.collapsed_navigation = None
+
+        # Компонент хлебных крошек
+        self.breadcrumbs = None
+        # Контейнер для хлебных крошек
+        self.breadcrumbs_container = None
+        # Контейнер для основного содержимого
+        self.content_container = None
+        # Объединяем хлебные крошки и контент
+        self.content_area = None
+
+        # Инициализация настроек
+        self.settings = Settings(data=None)
+        self.load_settings()
 
         # Инициализация страниц
         self.pages = {}
 
-        # Инициализация статистики использования
-        self.usage_stats = UsageStats(self)
-
-        # Инициализация поиска
+        # Инициализация поиска по меню
         self.menu_search = MenuSearch(self)
+
+        # Инициализация базы данных
+        self.database_project_service: DataBaseProjectService | None = None
+        self.init_database()
 
         logger.info("✅ Приложение инициализировано")
 
     @log_exception
-    def load_data(self):
-        """Загрузка данных приложения"""
-        logger.debug("📂 Загрузка данных приложения")
-        data = FileUtils.load_json("geooffice_data.json")
-        if data is None:
-            logger.info("📝 Создание данных по умолчанию")
-            # Создаем данные по умолчанию
-            data = {
-                "reports": [],
-                "coordinates": [],
-                "conversions": [],
-                "settings": {
-                    "auto_save": True,
-                    "theme": "light"
-                }
-            }
+    def load_settings(self) -> None:
+        """Чтение настроек приложения"""
+        logger.debug("📂 Чтение настроек приложения")
+        settings_data = FileUtils.load_json(Path("storage") / "data" / "settings.json")
+        if settings_data is not None:
+            try:
+                self.settings = Settings(data=settings_data)
+                logger.info("✅ Настройки загружены успешно")
+            except Warning as e:
+                logger.warning(e)
         else:
-            logger.info("✅ Данные загружены успешно")
-        return data
+            logger.info("📝 Создание настроек по умолчанию")
+            self.save_settings()
 
     @log_exception
-    def save_data(self):
-        """Сохранение данных приложения"""
-        logger.debug("💾 Сохранение данных приложения")
-        if FileUtils.save_json(self.data, "geooffice_data.json"):
-            logger.info("✅ Данные успешно сохранены")
+    def save_settings(self):
+        """Сохранение настроек приложения"""
+        logger.debug("💾 Сохранение настроек приложения")
+        if FileUtils.save_json(self.settings.to_dict(), Path("storage") / "data" / "settings.json"):
+            logger.info("✅ Настройки успешно сохранены")
         else:
-            logger.error("❌ Ошибка сохранения данных")
+            logger.error("❌ Ошибка сохранения настроек")
 
     @log_exception
     def main(self, page: ft.Page):
         logger.info("🎨 Инициализация пользовательского интерфейса")
         self.page = page
         page.title = "GeoOffice"
-        page.theme_mode = ft.ThemeMode.LIGHT
-        page.window_width = 1200
-        page.window_height = 800
-        page.window_min_width = 800
-        page.window_min_height = 600
+        page.theme_mode = self.settings.interface.theme
+        page.window.width = 1200
+        page.window.height = 1200
+        page.window.min_width = 800
+        page.window.min_height = 600
         page.padding = 20
 
         # Создание навигации
@@ -106,10 +122,6 @@ class GeoOfficeApp:
         page.add(main_layout)
         page.update()
 
-        # # Обработка URL при загрузке
-        # TODO: неактуально
-        # self.handle_initial_url()
-
         # Показ главной страницы по умолчанию
         if not self.current_view:
             self.show_home_page()
@@ -119,32 +131,6 @@ class GeoOfficeApp:
 
         page.update()
         logger.info("✅ Пользовательский интерфейс инициализирован")
-
-    # TODO: неактуально
-    # @log_exception
-    # def handle_initial_url(self):
-    #     """Обработка начального URL"""
-    #     try:
-    #         # Получаем URL из адресной строки браузера
-    #         url = self.page.url
-    #         logger.debug(f"🔗 Обработка URL: {url}")
-    #
-    #         # Проверяем, что это не TCP URL (который используется Flet для соединения)
-    #         if url and url != "/" and not url.startswith("tcp://"):
-    #             # Извлекаем путь из URL
-    #             path = url.strip("/")
-    #             if path in self.pages:
-    #                 logger.debug(f"📖 Переход к странице по URL: {path}")
-    #                 self.show_page(path)
-    #             else:
-    #                 logger.warning(f"⚠️ Страница не найдена по URL: {path}")
-    #                 self.show_home_page()
-    #         else:
-    #             logger.debug("🏠 Отображение главной страницы по умолчанию")
-    #             self.show_home_page()
-    #     except Exception as e:
-    #         logger.error(f"❌ Ошибка обработки URL: {e}")
-    #         self.show_home_page()
 
     @log_exception
     def create_navigation(self):
@@ -366,18 +352,30 @@ class GeoOfficeApp:
             # Обновляем активную страницу в свернутом меню
             self.update_collapsed_menu_active(page_name)
 
-            # Увеличиваем счетчик использования
-            self.usage_stats.increment_usage(page_name)
-
             self.page.update()
             logger.debug(f"✅ Страница {page_name} отображена")
         else:
             logger.warning(f"⚠️ Страница {page_name} не найдена")
 
     @log_exception
-    def show_project_page(self, number, name):
-        """Показать страницу объекта по номеру и названию"""
-        logger.debug(f"📖 Отображение страницы объекта: {number} {name}")
+    def show_project_page(self, project_id):
+        """Показать страницу объекта по id"""
+        logger.debug(f"📖 Отображение страницы объекта id={project_id}")
+        
+        # Создаем динамическую страницу проекта
+        from src.pages.project_page import ProjectPage
+        project_page = ProjectPage(self, project_id)
+        project = project_page.project
+        
+        # Отображаем страницу проекта
+        self.content_container.content = project_page.get_scrollable_content()
+        self.current_view = f"project_id{project.id}"
+        
+        # Обновляем хлебные крошки
+        self.breadcrumbs_container.content = self.breadcrumbs.create_breadcrumbs(f"{project.number} {project.name}")
+
+        self.page.update()
+        logger.debug(f"✅ Страница объекта id={project.id} отображена")
 
     @log_exception
     def update_collapsed_menu_active(self, page_name):
@@ -423,33 +421,57 @@ class GeoOfficeApp:
         self.show_page('home')
 
     @log_exception
-    def show_snack_bar(self, message):
+    def _show_snack_bar(self, message, level='info'):
         """Показать уведомление"""
         try:
             logger.debug(f"💬 Показ уведомления: {message}")
-            self.page.snack_bar = ft.SnackBar(content=ft.Text(message))
+            self.page.snack_bar = ft.SnackBar(content=ft.Text(message),
+                                              behavior=ft.SnackBarBehavior.FLOATING)
             self.page.snack_bar.open = True
+            self.page.snack_bar.show_close_icon = True
+            match level:
+                case 'error':
+                    self.page.snack_bar.bgcolor = ft.Colors.RED
+                case 'warning':
+                    self.page.snack_bar.bgcolor = ft.Colors.ORANGE
+                case _:
+                    self.page.snack_bar.bgcolor = ft.Colors.LIGHT_BLUE_ACCENT_700
+            self.page.overlay.append(self.page.snack_bar)
             self.page.update()
         except Exception as e:
             logger.error(f"Ошибка показа уведомления: {e}")
 
     @log_exception
-    def show_error(self, error_message):
+    def show_error(self, message):
         """Показать ошибку"""
         try:
-            logger.error(f"❌ Ошибка: {error_message}")
-            self.show_snack_bar(f"Ошибка: {error_message}")
+            logger.error(f"❌ Ошибка: {message}")
+            self._show_snack_bar(f"Ошибка: {message}", 'error')
         except Exception as e:
             logger.error(f"Ошибка показа ошибки: {e}")
 
     @log_exception
-    def show_warning(self, warning_message):
+    def show_warning(self, message):
         """Показать предупреждение"""
         try:
-            logger.warning(f"⚠️ Предупреждение: {warning_message}")
-            self.show_snack_bar(f"Предупреждение: {warning_message}")
+            logger.warning(f"⚠️ Предупреждение: {message}")
+            self._show_snack_bar(f"Предупреждение: {message}", 'warning')
         except Exception as e:
             logger.error(f"Ошибка показа предупреждения: {e}")
+
+    @log_exception
+    def show_info(self, message):
+        """Показать предупреждение"""
+        try:
+            logger.info(f"ℹ️ Информация: {message}")
+            self._show_snack_bar(f"{message}", 'info')
+        except Exception as e:
+            logger.error(f"Ошибка показа информации: {e}")
+
+    @log_exception
+    def init_database(self):
+        self.database_project_service = DataBaseProjectService(
+            Path(self.settings.paths.file_server) / self.settings.paths.database_path)
 
 
 @log_exception

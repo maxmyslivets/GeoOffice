@@ -1,7 +1,7 @@
 import flet as ft
 from src.utils.logger_config import get_logger
 
-logger = get_logger("categorized_menu")
+logger = get_logger("components.categorized_menu")
 
 
 class CategorizedMenu:
@@ -27,6 +27,7 @@ class CategorizedMenu:
                 "color": ft.Colors.BLUE,
                 "items": [
                     {"name": "Главная страница", "icon": ft.Icons.HOME_OUTLINED, "page": "home"},
+                    {"name": "Управление проектами", "icon": ft.Icons.FOLDER_OPEN_OUTLINED, "page": "projects"},
                 ]
             },
             "Документы": {

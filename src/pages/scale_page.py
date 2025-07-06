@@ -63,93 +63,94 @@ class ScalePage(BasePage):
         )
     
     def get_content(self):
-        return ft.Column([
-            ft.Text("Расчет масштабов", size=24, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20),
-            
-            # Расчет по расстояниям
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Расчет масштаба по расстояниям", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            self.real_distance_field,
-                            self.map_distance_field,
-                        ]),
-                        ft.ElevatedButton("Рассчитать масштаб", on_click=self.calculate_scale_from_distances),
-                    ]),
-                    padding=20
-                )
-            ),
-            
-            ft.Divider(height=20),
-            
-            # Расчет по площадям
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Расчет масштаба по площадям", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            self.real_area_field,
-                            self.map_area_field,
-                        ]),
-                        ft.ElevatedButton("Рассчитать масштаб", on_click=self.calculate_scale_from_areas),
-                    ]),
-                    padding=20
-                )
-            ),
-            
-            ft.Divider(height=20),
-            
-            # Ручной ввод масштаба
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Ручной ввод масштаба", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            self.manual_scale_field,
-                            self.standard_scales_dropdown,
-                        ]),
-                        ft.ElevatedButton("Рассчитать точность", on_click=self.calculate_manual_scale),
-                    ]),
-                    padding=20
-                )
-            ),
-            
-            ft.Divider(height=20),
-            
-            # Расчет расстояний
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Расчет расстояний по масштабу", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            self.input_distance_field,
-                            self.input_scale_field,
-                        ]),
-                        ft.Row([
-                            ft.ElevatedButton("Расстояние на карте", on_click=self.calculate_map_distance),
-                            ft.ElevatedButton("Реальное расстояние", on_click=self.calculate_real_distance),
-                        ]),
-                        self.distance_result_text,
-                    ]),
-                    padding=20
-                )
-            ),
-            
-            ft.Divider(height=20),
-            
-            # Результаты
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Результаты расчета", size=18, weight=ft.FontWeight.BOLD),
-                        self.result_text,
-                    ]),
-                    padding=20
-                )
-            ),
-        ])
+        # return ft.Column([
+        #     ft.Text("Расчет масштабов", size=24, weight=ft.FontWeight.BOLD),
+        #     ft.Divider(height=20),
+        #
+        #     # Расчет по расстояниям
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Расчет масштаба по расстояниям", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Row([
+        #                     self.real_distance_field,
+        #                     self.map_distance_field,
+        #                 ]),
+        #                 ft.ElevatedButton("Рассчитать масштаб", on_click=self.calculate_scale_from_distances),
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     # Расчет по площадям
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Расчет масштаба по площадям", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Row([
+        #                     self.real_area_field,
+        #                     self.map_area_field,
+        #                 ]),
+        #                 ft.ElevatedButton("Рассчитать масштаб", on_click=self.calculate_scale_from_areas),
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     # Ручной ввод масштаба
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Ручной ввод масштаба", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Row([
+        #                     self.manual_scale_field,
+        #                     self.standard_scales_dropdown,
+        #                 ]),
+        #                 ft.ElevatedButton("Рассчитать точность", on_click=self.calculate_manual_scale),
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     # Расчет расстояний
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Расчет расстояний по масштабу", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Row([
+        #                     self.input_distance_field,
+        #                     self.input_scale_field,
+        #                 ]),
+        #                 ft.Row([
+        #                     ft.ElevatedButton("Расстояние на карте", on_click=self.calculate_map_distance),
+        #                     ft.ElevatedButton("Реальное расстояние", on_click=self.calculate_real_distance),
+        #                 ]),
+        #                 self.distance_result_text,
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     # Результаты
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Результаты расчета", size=18, weight=ft.FontWeight.BOLD),
+        #                 self.result_text,
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        # ])
+        return ft.Text("Страница в разработке...", color=ft.Colors.RED, size=20)
     
     def calculate_scale_from_distances(self, e=None):
         """Расчет масштаба по расстояниям"""

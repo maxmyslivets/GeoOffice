@@ -13,40 +13,41 @@ class ConversionPage(BasePage):
         Возвращает содержимое страницы конвертации (UI).
         :return: Flet Column с элементами интерфейса
         """
-        return ft.Column([
-            ft.Text("Конвертация файлов", size=24, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20),
-            
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("ГЗУ из геопортала", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Конвертация JSON в DXF/DWG", color=ft.Colors.GREY_600),
-                        ft.Row([
-                            ft.ElevatedButton("Выбрать JSON файл", icon=ft.Icons.FILE_OPEN, on_click=self.select_json_file),
-                            ft.ElevatedButton("Конвертировать", icon=ft.Icons.TRANSFORM, on_click=self.convert_json),
-                        ])
-                    ]),
-                    padding=20
-                )
-            ),
-            
-            ft.Divider(height=20),
-            
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("Shape файлы НЦА", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Конвертация SHP в DXF/DWG", color=ft.Colors.GREY_600),
-                        ft.Row([
-                            ft.ElevatedButton("Выбрать SHP файл", icon=ft.Icons.FILE_OPEN, on_click=self.select_shp_file),
-                            ft.ElevatedButton("Конвертировать", icon=ft.Icons.TRANSFORM, on_click=self.convert_shp),
-                        ])
-                    ]),
-                    padding=20
-                )
-            )
-        ])
+        # return ft.Column([
+        #     ft.Text("Конвертация файлов", size=24, weight=ft.FontWeight.BOLD),
+        #     ft.Divider(height=20),
+        #
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("ГЗУ из геопортала", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Text("Конвертация JSON в DXF/DWG", color=ft.Colors.GREY_600),
+        #                 ft.Row([
+        #                     ft.ElevatedButton("Выбрать JSON файл", icon=ft.Icons.FILE_OPEN, on_click=self.select_json_file),
+        #                     ft.ElevatedButton("Конвертировать", icon=ft.Icons.TRANSFORM, on_click=self.convert_json),
+        #                 ])
+        #             ]),
+        #             padding=20
+        #         )
+        #     ),
+        #
+        #     ft.Divider(height=20),
+        #
+        #     ft.Card(
+        #         content=ft.Container(
+        #             content=ft.Column([
+        #                 ft.Text("Shape файлы НЦА", size=18, weight=ft.FontWeight.BOLD),
+        #                 ft.Text("Конвертация SHP в DXF/DWG", color=ft.Colors.GREY_600),
+        #                 ft.Row([
+        #                     ft.ElevatedButton("Выбрать SHP файл", icon=ft.Icons.FILE_OPEN, on_click=self.select_shp_file),
+        #                     ft.ElevatedButton("Конвертировать", icon=ft.Icons.TRANSFORM, on_click=self.convert_shp),
+        #                 ])
+        #             ]),
+        #             padding=20
+        #         )
+        #     )
+        # ])
+        return ft.Text("Страница в разработке...", color=ft.Colors.RED, size=20)
     
     def select_json_file(self, e=None):
         """

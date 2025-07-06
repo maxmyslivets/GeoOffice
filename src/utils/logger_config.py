@@ -8,6 +8,40 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Добавляем colorama для цветов
+try:
+    import colorama
+    from colorama import Fore, Style
+    colorama.init()
+    COLORS_AVAILABLE = True
+except ImportError:
+    COLORS_AVAILABLE = False
+    Fore = Style = None
+
+
+class ColoredFormatter(logging.Formatter):
+    """Форматтер с цветами для консоли"""
+
+    # Цвета для разных уровней
+    COLORS = {
+        'DEBUG': Fore.CYAN + Style.DIM if COLORS_AVAILABLE else '',
+        'INFO': Fore.GREEN if COLORS_AVAILABLE else '',
+        'WARNING': Fore.YELLOW + Style.BRIGHT if COLORS_AVAILABLE else '',
+        'ERROR': Fore.RED + Style.BRIGHT if COLORS_AVAILABLE else '',
+        'CRITICAL': Fore.RED + Style.BRIGHT + Fore.WHITE if COLORS_AVAILABLE else '',
+    }
+
+    def format(self, record):
+        # Получаем цвет для уровня
+        color = self.COLORS.get(record.levelname, '')
+        reset = Style.RESET_ALL if COLORS_AVAILABLE else ''
+
+        # Форматируем сообщение
+        formatted = super().format(record)
+
+        # Добавляем цвет и эмодзи
+        return f"{color}{formatted}{reset}"
+
 
 class GeoOfficeLogger:
     """
@@ -35,7 +69,7 @@ class GeoOfficeLogger:
         
         # Настраиваем логгеры для модулей
         self.setup_module_loggers()
-        
+
     def setup_formatters(self):
         """
         Настройка форматирования логов для файлов, консоли и пользовательского интерфейса.
@@ -45,13 +79,13 @@ class GeoOfficeLogger:
             fmt='%(asctime)s | %(name)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(funcName)s() | %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
-        
-        # Простой форматтер для консоли
-        self.simple_formatter = logging.Formatter(
+
+        # Цветной форматтер для консоли
+        self.simple_formatter = ColoredFormatter(
             fmt='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
             datefmt='%H:%M:%S'
         )
-        
+
         # Красивый форматтер для пользовательского интерфейса
         self.ui_formatter = logging.Formatter(
             fmt='[%(asctime)s] %(levelname)s: %(message)s',
@@ -110,7 +144,7 @@ class GeoOfficeLogger:
         """
         Настройка логгеров для различных модулей приложения (pages, services, utils, models, files, data).
         """
-        
+
         # Логгер для страниц
         pages_logger = logging.getLogger(f"{self.app_name}.pages")
         pages_logger.setLevel(logging.DEBUG)
@@ -166,8 +200,10 @@ class GeoOfficeLogger:
         self.logger.info(f"📅 Дата и время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         self.logger.info("=" * 60)
 
+
 # Глобальный экземпляр логгера
 _app_logger = None
+
 
 def setup_logging(app_name="GeoOffice"):
     """
@@ -180,6 +216,7 @@ def setup_logging(app_name="GeoOffice"):
     _app_logger.log_startup()
     return _app_logger
 
+
 def get_logger(module_name=None):
     """
     Получить логгер для указанного модуля.
@@ -190,6 +227,7 @@ def get_logger(module_name=None):
     if _app_logger is None:
         setup_logging()
     return _app_logger.get_logger(module_name)
+
 
 def log_function_call(func):
     """
@@ -209,6 +247,7 @@ def log_function_call(func):
             raise
     return wrapper
 
+
 def log_exception(func):
     """
     Декоратор для логирования исключений в функции.
@@ -222,4 +261,4 @@ def log_exception(func):
         except Exception as e:
             logger.exception(f"💥 Исключение в {func.__name__}: {str(e)}")
             raise
-    return wrapper 
+    return wrapper

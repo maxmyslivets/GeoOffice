@@ -1,18 +1,20 @@
+from pathlib import Path
+from urllib.parse import quote
+
 import flet as ft
-from .base_page import BasePage
-import os
-import difflib
-import threading
-import re
 import sys
-sys.path.append("..")
-from ..utils import search_utils
-from ..services.semantic_search_service import SemanticSearchService
-import time
-import socket
-from src.services.search_service import SearchService
+
+from .base_page import BasePage
+from ..components.link_section import LinkSection
+
+from ..services.project_service import ProjectService
+from ..utils.file_utils import FileUtils
+from ..utils.interface_utils import InterfaceUtils
 
 from ..utils.logger_config import log_exception
+
+
+sys.path.append("..")
 
 
 class HomePage(BasePage):
@@ -24,30 +26,12 @@ class HomePage(BasePage):
         :param app: Экземпляр основного приложения
         """
         super().__init__(app)
-        self.search_query = ""
-        self.search_path = ""
-        self.use_default_path = False
-        self.search_results = []
-        self.results_container = None
-        self.path_field = None
-        self.checkbox = None
-        self.smart_checkbox = None
         self.page = None
-        self.default_path_key = "geooffice_default_search_path"
+        self.search_query = ""
+        self.results_container = None
         self.loading_indicator = None
         self.search_field = None
-        self.use_smart_search = False
-        self.use_morph_search = False
-        self.search_service = SearchService()
-
-    @staticmethod
-    def get_user_default_path_file():
-        """
-        Получить путь к файлу, где хранится путь поиска по умолчанию для текущего пользователя.
-        :return: str - путь к файлу
-        """
-        computer_name = socket.gethostname()
-        return os.path.join("storage", "users", computer_name, "default_path.txt")
+        self.project_service = ProjectService(app.database_project_service)
 
     def get_content(self):
         """
@@ -57,7 +41,7 @@ class HomePage(BasePage):
         self.page = self.app.page
         # Создаём поля поиска
         self.search_field = ft.TextField(
-            hint_text="Поиск объектов...",
+            hint_text="Название объекта...",
             prefix_icon=ft.Icons.SEARCH,
             on_change=self.on_query_change,
             border_radius=20,
@@ -69,34 +53,29 @@ class HomePage(BasePage):
         self.results_container = ft.Container(
             content=ft.Text("Результаты поиска появятся здесь...", color=ft.Colors.GREY_500),
             padding=10,
-            bgcolor=ft.Colors.GREY_50,
+            # bgcolor=ft.Colors.GREY_50,
             border_radius=8,
             margin=ft.margin.only(top=10)
         )
+        self.project_search()
         return ft.Column([
             ft.Row([
                 ft.Image(src="icon.png", height=64),
                 ft.Column([
-                    ft.Text("Добро пожаловать в GeoOffice", size=32, weight=ft.FontWeight.BOLD),
-                    ft.Text("Ведение геодезической документации и расчетов", size=16, color=ft.Colors.GREY_600),
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=2),
+                    ft.Text("Добро пожаловать в GeoOffice", size=32, weight=ft.FontWeight.BOLD,
+                            overflow=ft.TextOverflow.ELLIPSIS, expand=True),
+                    ft.Text("Ведение документации по объектам и геодезические расчеты",
+                            size=16, color=ft.Colors.GREY_600, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=2, expand=True),
             ], spacing=20, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+
             ft.Divider(height=40),
+
+            LinkSection(self.app).create(title="Закреплённые папки",
+                                         links=self.app.settings.paths.favorite_folders, is_edit=True),
+            self.create_statistics_section(),
             
-            ft.Text("Обзор системы", size=20, weight=ft.FontWeight.BOLD),
-            ft.Row([
-                self.create_info_card("Документы", "Создание геодезической документации",
-                                      ft.Icons.DESCRIPTION, ft.Colors.BLUE, self.show_documents),
-                self.create_info_card("Приложения", "Вычисление координат и масштабов, конвертация файлов",
-                                      ft.Icons.EXPLORE, ft.Colors.GREEN, self.show_geodetic_works),
-                self.create_info_card("Специализированные инструменты",
-                                      "Плагины AutoCAD и Metashape, таксационные расчеты",
-                                      ft.Icons.BUILD, ft.Colors.ORANGE, self.show_specialized_tools),
-            ], wrap=True),
-            
-            ft.Divider(height=40),
-            
-            ft.Text("Объекты", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
             ft.Container(
                 content=ft.Column([
                     ft.Row([
@@ -106,64 +85,49 @@ class HomePage(BasePage):
                     self.results_container
                 ]),
                 padding=20,
-                bgcolor=ft.Colors.GREY_100,
                 border_radius=8,
                 margin=ft.margin.only(top=10, bottom=10),
                 expand=True
             ),
         ])
 
-    def create_info_card(self, title, description, icon, color, on_click=None):
-        """
-        Создаёт информационную карточку для раздела.
-        :param title: Заголовок
-        :param description: Описание
-        :param icon: Иконка Flet
-        :param color: Цвет иконки
-        :param on_click: Обработчик клика
-        :return: Flet Card
-        """
-        return ft.Card(
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Icon(icon, size=40, color=color),
-                    ft.Text(title, size=16, weight=ft.FontWeight.BOLD),
-                    ft.Text(description, size=12, color=ft.Colors.GREY_600),
-                ], horizontal_alignment=ft.CrossAxisAlignment.START),
-                padding=20,
-                width=250,
-                height=180,
-                alignment=ft.alignment.top_left,
-                on_click=on_click,
-                ink=True,
-                border_radius=8
-            )
-        )
-    
-    def show_documents(self, e=None):
-        """
-        Показать раздел документов. Вызывает уведомление и может переключить страницу.
-        """
-        self.show_snack_bar("Переход к документам...")
-        # Можно добавить переход к первой функции из категории
-        # self.app.show_page('documents')
-    
-    def show_geodetic_works(self, e=None):
-        """
-        Показать раздел геодезических работ. Вызывает уведомление и может переключить страницу.
-        """
-        self.show_snack_bar("Переход к геодезическим работам...")
-        # Можно добавить переход к первой функции из категории
-        # self.app.show_page('coordinates')
-    
-    def show_specialized_tools(self, e=None):
-        """
-        Показать раздел специализированных инструментов. Вызывает уведомление и может переключить страницу.
-        """
-        self.show_snack_bar("Переход к специализированным инструментам...")
-        # Можно добавить переход к первой функции из категории
-        # self.app.show_page('autocad')
+    @log_exception
+    def create_statistics_section(self):
+        """Создание секции статистики"""
+        stats = self.project_service.get_project_statistics()
 
+        def create_stat_card(title: str, value: int, icon: str, color: str = ft.Colors.BLUE):
+            """Создание карточки статистики"""
+            return ft.Card(ft.Container(
+                content=ft.Column([
+                    ft.Icon(icon, color=color, size=24),
+                    ft.Text(title, size=14, color=ft.Colors.GREY_600),
+                    ft.Text(str(value), size=18, weight=ft.FontWeight.BOLD),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                padding=10,
+                border_radius=8,
+                width=150,
+                height=90
+            ))
+
+        return ft.Container(
+            ft.Column([
+                ft.Text("Статистика объектов", size=20, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    create_stat_card("Активные", stats["active_projects"], ft.Icons.FOLDER_OPEN, ft.Colors.GREEN),
+                    create_stat_card("Выданы", stats["completed_projects"], ft.Icons.FOLDER_SPECIAL, ft.Colors.BLUE),
+                    create_stat_card("В архиве", stats["archived_projects"], ft.Icons.FOLDER_OFF, ft.Colors.GREY),
+                    create_stat_card("Перспективные", stats["promising_projects"], ft.Icons.DESCRIPTION, ft.Colors.ORANGE),
+                    create_stat_card("Всего", stats["total_projects"], ft.Icons.FOLDER),
+                ], spacing=10, wrap=True, alignment=ft.MainAxisAlignment.START,
+                )
+            ]),
+            padding=ft.padding.only(left=10, right=10, top=15, bottom=15),
+            border_radius=8,
+            expand=True
+        )
+
+    @log_exception
     def on_query_change(self, e):
         """
         Обработчик изменения строки поиска.
@@ -174,17 +138,24 @@ class HomePage(BasePage):
             self.loading_indicator.visible = True
             self.page.update()
             self.project_search()
+        else:
+            self.project_search(empty_search=True)
 
-    def project_search(self):
+    @log_exception
+    def project_search(self, empty_search=False):
         """
         Запускает поиск по объектам и обновляет UI с результатами.
         """
-        results = self.search_service.project_search(self.search_query)
+        # FIXME: При возвращении на домашнюю страницу контейнер с результатами поиска не сбрасывается
+        if empty_search:
+            results = self.project_service.search_projects(self.search_query, return_all=True, limit=50)
+        else:
+            results = self.project_service.search_projects(self.search_query)
         items = []
         import re
         query_text = self.search_query.strip()
         highlight_re = re.compile(re.escape(query_text), re.IGNORECASE)
-        for number, name in results:
+        for project_id, number, name, customer in results:
             text = f"{number} {name}"
             icon = ft.Icons.DESCRIPTION
             display_name = []
@@ -202,9 +173,10 @@ class HomePage(BasePage):
                 ft.ListTile(
                     leading=ft.Icon(icon, color=ft.Colors.GREY_700),
                     title=ft.Row(display_name, spacing=0),
-                    subtitle=ft.Text("Наименование заказчика", size=11, color=ft.Colors.GREY_500),    # TODO: Заказчик
-                    on_click=lambda e: self.app.show_project_page(number, name),
+                    subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
+                    on_click=lambda e: self.app.show_project_page(project_id),
                     dense=True,
+                    bgcolor=ft.Colors.BLUE_50
                 )
             )
         if not items:
@@ -213,5 +185,3 @@ class HomePage(BasePage):
             self.results_container.content = ft.Column(items, scroll=ft.ScrollMode.AUTO, height=350)
         self.loading_indicator.visible = False
         self.page.update()
-
-
