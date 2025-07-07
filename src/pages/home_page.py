@@ -57,7 +57,7 @@ class HomePage(BasePage):
             border_radius=8,
             margin=ft.margin.only(top=10)
         )
-        self.project_search()
+        self.project_search(empty_search=True)
         return ft.Column([
             ft.Row([
                 ft.Image(src="icon.png", height=64),
@@ -147,6 +147,7 @@ class HomePage(BasePage):
         Запускает поиск по объектам и обновляет UI с результатами.
         """
         # FIXME: При возвращении на домашнюю страницу контейнер с результатами поиска не сбрасывается
+        # FIXME: Элементы списка результатов не совпадают со своими id проектов
         if empty_search:
             results = self.project_service.search_projects(self.search_query, return_all=True, limit=50)
         else:
