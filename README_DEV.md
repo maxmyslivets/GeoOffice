@@ -9,7 +9,7 @@
 
 ### Установка пакетов
 ```shell
-uv pip install flet
+uv pip install -r requirements.txt
 ```
 
 ### Фиксация зависимостей
