@@ -3,9 +3,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from pony.orm import Database, db_session
+from pony.orm import Database as PonyDatabase
+from pony.orm import db_session
 
-from src.models.database_model import DataBaseProjects
+from src.models.database_model import Database
 from src.models.project_model import Project
 from src.utils.file_utils import FileUtils
 from src.utils.logger_config import log_exception, get_logger
@@ -13,7 +14,7 @@ from src.utils.logger_config import log_exception, get_logger
 logger = get_logger("services.database_service")
 
 
-class DataBaseProjectService:
+class DatabaseService:
     """
     Сервис для работы с базой данных проектов.
     Содержит методы для работы с таблицами, определенными в DataBaseProjects.
@@ -25,7 +26,7 @@ class DataBaseProjectService:
         :param path: Путь к файлу базы данных
         """
         self._path = Path(path)
-        self.db = Database()
+        self.db = PonyDatabase()
 
         try:
             logger.info(f"Инициализация базы данных: {self._path}")
@@ -37,7 +38,7 @@ class DataBaseProjectService:
             FileUtils.manage_file_attributes(file_path=str(self._path), action="protect")
 
             # Инициализация моделей
-            self.models = DataBaseProjects(self.db).models
+            self.models = Database(self.db).models
 
             # Генерируем схемы таблиц
             self.db.generate_mapping(create_tables=True)

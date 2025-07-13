@@ -2,11 +2,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pony.orm import Database, PrimaryKey, Required, Optional, Set, db_session, select
+from pony.orm import Database as PonyDatabase
+from pony.orm import PrimaryKey, Required, Optional, Set, db_session, select
 
 
-class DataBaseProjects:
-    def __init__(self, db: Database):
+class Database:
+    def __init__(self, db: PonyDatabase):
         """
         Инициализация моделей базы данных.
         :param db: Экземпляр базы данных Pony ORM

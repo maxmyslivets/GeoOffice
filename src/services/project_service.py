@@ -1,11 +1,12 @@
 import os
+import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
 
 from src.models.project_model import Project
-from src.services.database_service import DataBaseProjectService
+from src.services.database_service import DatabaseService
 from src.utils.file_utils import FileUtils
 from src.utils.logger_config import log_exception, get_logger
 
@@ -18,9 +19,9 @@ class ProjectService:
     Обеспечивает загрузку, сохранение, поиск и управление данными проектов.
     """
     
-    def __init__(self, database_project_service: DataBaseProjectService):
+    def __init__(self, database_project_service: DatabaseService):
         """Инициализация сервиса проектов"""
-        self.database_project_service = database_project_service
+        self.database_service = database_project_service
         logger.info(f"Инициализирован сервис проектов.")
 
     @log_exception
@@ -30,7 +31,7 @@ class ProjectService:
         :param project_id: id проекта
         :return: Данные проекта или None если не найден
         """
-        project_data = self.database_project_service.get_project(project_id).to_dict()
+        project_data = self.database_service.get_project(project_id).to_dict()
         project_data['created_date'] = datetime.fromisoformat(project_data['created_date'])
         project_data['modified_date'] = datetime.fromisoformat(project_data['modified_date'])
         return Project(**project_data)
@@ -45,7 +46,7 @@ class ProjectService:
         :return: Список кортежей (id, номер, название, заказчик)
         """
 
-        projects_data: List[Project] = self.database_project_service.get_all_projects()
+        projects_data: List[Project] = self.database_service.get_all_projects()
 
         query_lower = query.lower()
         results = []
@@ -66,6 +67,33 @@ class ProjectService:
                     results.append((project.id, project.number, project.name, project.customer))
 
         return results
+
+    @log_exception
+    def diff_projects(self, projects_dirpath: str | Path) -> dict[str, list[str]]:
+        """
+        Сканирование директории проектов и определение наличия проектов в базе данных.
+        :return: ...
+        """
+
+        project_dirname_pattern = re.compile(r"^(?:\d{1,3}|NN)\.\d{2}(?:\s.+)?$")
+
+        projects_in_files = []
+        for dirpath, dirnames, filenames in os.walk(projects_dirpath):
+            for dirname in dirnames:
+                if project_dirname_pattern.match(dirname):
+                    # match = re.match(r"^((?:\d{1,3}|NN)\.\d{2})(?:\s+(.*))?$", dirname)
+                    # number = match.group(1)
+                    # name = match.group(2) or ""
+                    projects_in_files.append((Path(dirpath) / dirname).relative_to(projects_dirpath))
+        print(projects_in_files)
+        projects_in_files = set(projects_in_files)
+        projects_in_database = set(p.path for p in list(self.database_service.get_all_projects()))
+
+        return {
+            "only_in_files": list(projects_in_files - projects_in_database),
+            "only_in_database": list(projects_in_database - projects_in_files),
+            "in_files_and_database": list(projects_in_files & projects_in_database)
+        }
 
     @log_exception
     def create_project(self, number: str, name: str, customer: str = "") -> Project:

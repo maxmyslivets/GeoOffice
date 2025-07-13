@@ -1,3 +1,5 @@
+import threading
+import time
 from pathlib import Path
 from urllib.parse import quote
 
@@ -5,7 +7,9 @@ import flet as ft
 import sys
 
 from .base_page import BasePage
+from ..components.banners import BannerDiffProjects
 from ..components.link_section import LinkSection
+from ..services.background_service import BackgroundService
 
 from ..services.project_service import ProjectService
 from ..utils.file_utils import FileUtils
@@ -31,7 +35,11 @@ class HomePage(BasePage):
         self.results_container = None
         self.loading_indicator = None
         self.search_field = None
-        self.project_service = ProjectService(app.database_project_service)
+        self.project_service = ProjectService(app.database_service)
+        # Получаем или создаем BackgroundService
+        if not hasattr(app, 'background_service'):
+            app.background_service = BackgroundService()
+        self.start_periodic_diff()
 
     def get_content(self):
         """
@@ -188,3 +196,56 @@ class HomePage(BasePage):
             self.results_container.content = ft.Column(items, scroll=ft.ScrollMode.AUTO, height=350)
         self.loading_indicator.visible = False
         self.page.update()
+
+    @log_exception
+    def diff_projects(self):
+        """
+        Запускает процесс сравнения проектов в файловой системе и проектов из базы данных.
+        """
+
+
+        diff = self.project_service.diff_projects(
+            Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
+        count_only_in_files = len(diff["only_in_files"])
+        count_only_in_database = len(diff["only_in_database"])
+        # print(count_only_in_files)
+        # print(count_only_in_database)
+        text = "Требуется обновление базы данных."
+        if (count_only_in_files + count_only_in_database) > 0:
+            if count_only_in_files > 0:
+                text += f"\nНайдено новых объектов: {count_only_in_files}"
+            if count_only_in_database > 0:
+                text += f"\nУдалено объектов: {count_only_in_database}"
+            banner = BannerDiffProjects(self.app)
+            banner.create(text,
+                          {
+                              "Обновить": lambda e: (
+                                  banner.close_banner(e),
+                                  self.app.show_error("Функция в разработке")   # TODO: Заглушка
+                              ),
+                              "Отложить обновление": banner.close_banner
+                          })
+            banner.show()
+
+    @log_exception
+    def start_periodic_diff(self):
+        """Запуск периодической проверки проектов через BackgroundService"""
+        # Останавливаем предыдущую задачу, если она существует
+        self.app.background_service.stop_task("diff_projects")
+
+        # Запускаем новую задачу
+        self.app.background_service.start_periodic_task(
+            task_name="diff_projects",
+            task_func=self.diff_projects,
+            initial_delay=5,  # до первого запуска
+            interval=30 * 60  # между запусками
+        )
+
+    @log_exception
+    def __del__(self):
+        """Деструктор - останавливает задачи при удалении страницы"""
+        try:
+            if hasattr(self, 'app') and hasattr(self.app, 'background_service'):
+                self.app.background_service.stop_task("diff_projects")
+        except:
+            pass

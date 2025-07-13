@@ -2,7 +2,7 @@ import flet as ft
 from pathlib import Path
 
 from src.models.settings_model import Settings
-from src.services.database_service import DataBaseProjectService
+from src.services.database_service import DatabaseService
 
 from src.utils.logger_config import setup_logging, get_logger, log_exception
 from src.utils.file_utils import FileUtils
@@ -60,7 +60,7 @@ class GeoOfficeApp:
         self.menu_search = MenuSearch(self)
 
         # Инициализация базы данных
-        self.database_project_service: DataBaseProjectService | None = None
+        self.database_service: DatabaseService | None = None
         self.init_database()
 
         logger.info("✅ Приложение инициализировано")
@@ -470,7 +470,7 @@ class GeoOfficeApp:
 
     @log_exception
     def init_database(self):
-        self.database_project_service = DataBaseProjectService(
+        self.database_service = DatabaseService(
             Path(self.settings.paths.file_server) / self.settings.paths.database_path)
 
 

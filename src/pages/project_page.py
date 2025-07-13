@@ -18,7 +18,7 @@ class ProjectPage(BasePage):
     def __init__(self, app, project_id: int):
         super().__init__(app)
 
-        self.project_service = ProjectService(app.database_project_service)
+        self.project_service = ProjectService(app.database_service)
 
         # Загружаем данные проекта
         self.project = self.project_service.get_project(project_id)
