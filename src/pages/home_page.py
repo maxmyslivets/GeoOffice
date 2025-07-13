@@ -39,6 +39,10 @@ class HomePage(BasePage):
         :return: Flet Column с элементами интерфейса
         """
         self.page = self.app.page
+        # Сбрасываем поисковой запрос
+        self.search_query = ""
+        if self.search_field:
+            self.search_field.value = ""
         # Создаём поля поиска
         self.search_field = ft.TextField(
             hint_text="Название объекта...",
@@ -175,7 +179,7 @@ class HomePage(BasePage):
                     leading=ft.Icon(icon, color=ft.Colors.GREY_700),
                     title=ft.Row(display_name, spacing=0),
                     subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
-                    on_click=lambda e: self.app.show_project_page(project_id),
+                    on_click=lambda e, pid=project_id: self.app.show_project_page(pid),
                     dense=True,
                     bgcolor=ft.Colors.BLUE_50
                 )
