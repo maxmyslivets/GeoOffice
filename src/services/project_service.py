@@ -85,7 +85,6 @@ class ProjectService:
                     # number = match.group(1)
                     # name = match.group(2) or ""
                     projects_in_files.append((Path(dirpath) / dirname).relative_to(projects_dirpath))
-        print(projects_in_files)
         projects_in_files = set(projects_in_files)
         projects_in_database = set(p.path for p in list(self.database_service.get_all_projects()))
 
