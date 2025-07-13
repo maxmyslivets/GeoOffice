@@ -150,8 +150,6 @@ class HomePage(BasePage):
         """
         Запускает поиск по объектам и обновляет UI с результатами.
         """
-        # FIXME: При возвращении на домашнюю страницу контейнер с результатами поиска не сбрасывается
-        # FIXME: Элементы списка результатов не совпадают со своими id проектов
         if empty_search:
             results = self.project_service.search_projects(self.search_query, return_all=True, limit=50)
         else:
