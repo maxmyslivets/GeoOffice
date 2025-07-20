@@ -39,7 +39,7 @@ class HomePage(BasePage):
         # Получаем или создаем BackgroundService
         if not hasattr(app, 'background_service'):
             app.background_service = BackgroundService()
-        self.start_periodic_diff()
+        # self.start_periodic_diff()    # TODO: Вынести проверку на страницу настроек
 
     def get_content(self):
         """
