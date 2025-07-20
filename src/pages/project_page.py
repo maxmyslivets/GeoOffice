@@ -1,3 +1,5 @@
+import os
+
 import flet as ft
 from pathlib import Path
 
@@ -104,8 +106,8 @@ class ProjectPage(BasePage):
     def create_link_section(self):
         project_path = self.project.get_path(
             Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
-        links = [[name, Path(project_path) / path]
-                 for name, path in self.app.settings.paths.project_paths_template.items()]
+        links = [[name, Path(project_path) / name]
+                 for name in os.listdir(project_path) if (Path(project_path) / name).is_dir()]
         links.insert(0, [self.project.number, project_path])
         return LinkSection(self.app).create(title="Быстрый доступ", links=links, is_edit=False)
 
