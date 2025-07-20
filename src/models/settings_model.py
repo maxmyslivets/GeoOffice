@@ -12,9 +12,12 @@ class Interface:
     :param height: Высота окна
     """
     theme: Literal['light', 'dark', 'system']
+    is_last_page: bool
     last_page: str
     width: int
     height: int
+    left: int
+    top: int
 
 
 @dataclass
@@ -24,13 +27,11 @@ class Paths:
     :param file_server: Путь к файловому серверу
     :param projects_folder: Путь к папке проектов (относительно файлового сервера)
     :param favorite_folders: Пути к закрепленным папкам
-    :param project_paths_template: Пути к основным папкам объекта (относительно пути к папке проектов)
     :param database_path: Путь к базе данных проектов (относительно файлового сервера)
     """
     file_server: str
     projects_folder: str
     favorite_folders: list[list[str]]
-    project_paths_template: dict[str, str]
     database_path: str
 
 
@@ -63,7 +64,7 @@ class Settings:
             self.interface = interface
             self.paths = paths
         except Exception as e:
-            raise Warning("Не удалось загрузить настройки, используются настройки по умолчанию.")
+            raise Warning(f"Не удалось загрузить настройки, используются настройки по умолчанию.\nОшибка:\n{e}")
 
     def to_dict(self) -> dict:
         """
@@ -77,34 +78,28 @@ class Settings:
 
     def init_default_settings(self) -> None:
         """Инициализация настроек по умолчанию"""
-        file_server = 'C:\\GeoOffice_test_server'
+        file_server = r'\\server-r\igi'
 
         self.interface = Interface(
             theme='light',
             last_page='HomePage',
+            is_last_page=True,
             width=800,
             height=1000,
+            left=10,
+            top=10,
         )
         self.paths = Paths(
             file_server=file_server,
             projects_folder='Work\\Объекты',
             favorite_folders=[
+                ['сервер IGI', file_server],
+                ['сервер NFVGP', r'\\server\Объекты'],
+                ['NF', file_server + '\\NF'],
                 ['Запись', 'D:\\Запись'],
                 ['Scan', 'D:\\scan'],
-                ['сервер IGI', file_server],
-                ['NF', file_server + '\\NF'],
             ],
-            project_paths_template={
-                'Архитектура': 'Архитектура',
-                'Документы': 'Документы',
-                'Исходные': 'Исходные',
-                'На выпуск': 'На выпуск',
-                'Оцифровка': 'Оцифровка',
-                'Полёты': 'Полёты',
-                'Смежники': 'Смежники',
-                'Согласование': 'Согласование'
-            },
-            database_path=file_server+'\\projects.db'
+            database_path=file_server+'\\geo_office.db'
         )
 
     def add_favorite_folder(self, name: str, path: str) -> None:

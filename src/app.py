@@ -95,10 +95,12 @@ class GeoOfficeApp:
         self.page = page
         page.title = "GeoOffice"
         page.theme_mode = self.settings.interface.theme
-        page.window.width = 1200
-        page.window.height = 1200
+        page.window.width = self.settings.interface.width
+        page.window.height = self.settings.interface.height
         page.window.min_width = 800
         page.window.min_height = 600
+        page.window.left = self.settings.interface.left
+        page.window.top = self.settings.interface.top
         page.padding = 20
 
         # Создание навигации
@@ -128,8 +130,12 @@ class GeoOfficeApp:
 
         # Переключение меню в свернутый вид
         self.toggle_menu_visibility()
-
         page.update()
+
+        if self.settings.interface.is_last_page:
+            self.show_page(self.settings.interface.last_page)
+        page.update()
+
         logger.info("✅ Пользовательский интерфейс инициализирован")
 
     @log_exception

@@ -74,7 +74,7 @@ class HomePage(BasePage):
             ft.Row([
                 ft.Image(src="icon.png", height=64),
                 ft.Column([
-                    ft.Text("Добро пожаловать в GeoOffice", size=32, weight=ft.FontWeight.BOLD,
+                    ft.Text("GeoOffice", size=32, weight=ft.FontWeight.BOLD,
                             overflow=ft.TextOverflow.ELLIPSIS, expand=True),
                     ft.Text("Ведение документации по объектам и геодезические расчеты",
                             size=16, color=ft.Colors.GREY_600, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
@@ -85,7 +85,6 @@ class HomePage(BasePage):
 
             LinkSection(self.app).create(title="Закреплённые папки",
                                          links=self.app.settings.paths.favorite_folders, is_edit=True),
-            self.create_statistics_section(),
             
             ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
             ft.Container(
@@ -101,6 +100,7 @@ class HomePage(BasePage):
                 margin=ft.margin.only(top=10, bottom=10),
                 expand=True
             ),
+            self.create_statistics_section(),
         ])
 
     @log_exception
@@ -243,9 +243,13 @@ class HomePage(BasePage):
 
     @log_exception
     def __del__(self):
-        """Деструктор - останавливает задачи при удалении страницы"""
+        """Деструктор - выполняется при удалении страницы"""
         try:
-            if hasattr(self, 'app') and hasattr(self.app, 'background_service'):
-                self.app.background_service.stop_task("diff_projects")
+            self.app.settings.interface.width = int(self.page.window.width)
+            self.app.settings.interface.height = int(self.page.window.height)
+            self.app.settings.interface.left = int(self.page.window.left)
+            self.app.settings.interface.top = int(self.page.window.top)
+            self.app.settings.interface.last_page = 'home'  # TODO: получить имя страницы
+            self.app.save_settings()
         except:
             pass
