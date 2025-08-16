@@ -19,23 +19,18 @@ class MenuSearch:
         self.search_results = []
         
         # Список всех функций для поиска
-        self.all_functions = [
-            {"name": "Главная", "page": "home", "category": "Основные функции", "description": "Главная страница приложения"},
-            {"name": "Документы", "page": "documents", "category": "Основные функции", "description": "Управление документами"},
-            {"name": "Координаты", "page": "coordinates", "category": "Геодезические работы", "description": "Работа с координатами"},
-            {"name": "Конвертация", "page": "conversion", "category": "Геодезические работы", "description": "Конвертация координат"},
-            {"name": "Масштабы", "page": "scale", "category": "Геодезические работы", "description": "Работа с масштабами"},
-            {"name": "AutoCAD", "page": "autocad", "category": "Специализированные инструменты", "description": "Интеграция с AutoCAD"},
-            {"name": "Таксация", "page": "taxation", "category": "Специализированные инструменты", "description": "Таксационные работы"},
-            {"name": "Картограмма", "page": "cartogram", "category": "Специализированные инструменты", "description": "Создание картограмм"},
-            {"name": "Настройки", "page": "settings", "category": "Система", "description": "Настройки приложения"},
-        ]
+        self.all_functions = []
     
-    def create_search_widget(self):
+    def create_search_widget(self, categories: dict):
         """
         Создание виджета поиска по функциям меню.
         :return: Flet Column с полем поиска и результатами
         """
+        self.all_functions.clear()
+        for category in categories:
+            for item in categories[category]["items"]:
+                self.all_functions.append({"name": item["name"], "page": item["page"]})
+
         self.search_field = ft.TextField(
             hint_text="Поиск функций...",
             prefix_icon=ft.Icons.SEARCH,
@@ -73,9 +68,7 @@ class MenuSearch:
             # Поиск по функциям
             results = []
             for func in self.all_functions:
-                if (query in func["name"].lower() or 
-                    query in func["category"].lower() or 
-                    query in func["description"].lower()):
+                if query in func["name"].lower():
                     results.append(func)
             
             if results:
@@ -96,10 +89,8 @@ class MenuSearch:
             result_item = ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Text(func["name"], size=12, weight=ft.FontWeight.BOLD),
-                        ft.Text(func["category"], size=10, color=ft.Colors.GREY_600)
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Text(func["description"], size=10, color=ft.Colors.GREY_500)
+                        ft.Text(func["name"], size=12, weight=ft.FontWeight.BOLD)
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                 ]),
                 padding=ft.padding.only(left=15, right=15, top=8, bottom=8),
                 on_click=lambda e, page=func["page"]: self.navigate_to_result(page),
