@@ -45,6 +45,7 @@ class ProjectService:
         :param limit: Максимальное количество результатов
         :return: Список кортежей (id, номер, название, заказчик)
         """
+        #FIXME: При появлении пробела в запросе, сервис не выдает результаты
 
         projects_data: List[Project] = self.database_service.get_all_projects()
 
