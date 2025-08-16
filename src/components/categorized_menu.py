@@ -22,43 +22,35 @@ class CategorizedMenu:
         
         # Определение категорий и их подпрограмм
         self.categories = {
-            "Главная": {
+            "Доска": {
                 "icon": ft.Icons.HOME,
                 "color": ft.Colors.BLUE,
                 "items": [
-                    {"name": "Главная страница", "icon": ft.Icons.HOME_OUTLINED, "page": "home"},
-                    {"name": "Управление проектами", "icon": ft.Icons.FOLDER_OPEN_OUTLINED, "page": "projects"},
+                    {"name": "Доска", "icon": ft.Icons.HOME_OUTLINED, "page": "home"},
+                ]
+            },
+            "Объекты": {
+                "icon": ft.Icons.HOME,
+                "color": ft.Colors.BLUE,
+                "items": [
+                    {"name": "Объекты", "icon": ft.Icons.FOLDER_OPEN_OUTLINED, "page": "projects"},
                 ]
             },
             "Документы": {
                 "icon": ft.Icons.DESCRIPTION,
                 "color": ft.Colors.BLUE,
                 "items": [
-                    {"name": "Управление документами", "icon": ft.Icons.FOLDER_OUTLINED, "page": "documents"},
-                    {"name": "Импорт файлов", "icon": ft.Icons.UPLOAD_OUTLINED, "page": "documents_import"},
-                    {"name": "Экспорт данных", "icon": ft.Icons.DOWNLOAD_OUTLINED, "page": "documents_export"},
-                    {"name": "Архив документов", "icon": ft.Icons.ARCHIVE_OUTLINED, "page": "documents_archive"},
-                    {"name": "Картограмма", "icon": ft.Icons.MAP_OUTLINED, "page": "cartogram"},
+                    {"name": "Создание документов", "icon": ft.Icons.FOLDER_OUTLINED, "page": "documents"}
                 ]
             },
-            "Геодезические работы": {
-                "icon": ft.Icons.EXPLORE,
-                "color": ft.Colors.GREEN,
-                "items": [
-                    {"name": "Координаты", "icon": ft.Icons.EXPLORE_OUTLINED, "page": "coordinates"},
-                    {"name": "Конвертация", "icon": ft.Icons.TRANSFORM_OUTLINED, "page": "conversion"},
-                    {"name": "Масштабы", "icon": ft.Icons.STRAIGHTEN_OUTLINED, "page": "scale"},
-                ]
-            },
-            "Специализированные инструменты": {
+            "Инструменты": {
                 "icon": ft.Icons.BUILD,
                 "color": ft.Colors.ORANGE,
                 "items": [
-                    {"name": "AutoCAD", "icon": ft.Icons.BUILD_OUTLINED, "page": "autocad"},
-                    {"name": "Таксация", "icon": ft.Icons.FOREST_OUTLINED, "page": "taxation"},
+                    {"name": "Расчет отходов древесины", "icon": ft.Icons.FOREST_OUTLINED, "page": "wood_waste"},
                 ]
             },
-            "Система": {
+            "Настройки": {
                 "icon": ft.Icons.SETTINGS,
                 "color": ft.Colors.GREY,
                 "items": [
@@ -78,7 +70,7 @@ class CategorizedMenu:
         
         # Добавляем поиск в начало меню
         if hasattr(self.app, 'menu_search'):
-            search_widget = self.app.menu_search.create_search_widget()
+            search_widget = self.app.menu_search.create_search_widget(self.categories)
             menu_items.append(search_widget)
             menu_items.append(ft.Divider(height=1, color=ft.Colors.GREY_300))
         
@@ -86,16 +78,16 @@ class CategorizedMenu:
             category_item = self.create_category_item(category_name, category_data)
             menu_items.append(category_item)
         
-        # Добавляем статистику использования в конец меню
-        if hasattr(self.app, 'usage_stats'):
-            stats_widget = self.app.usage_stats.create_stats_widget()
-            menu_items.append(
-                ft.Container(
-                    content=stats_widget,
-                    margin=ft.margin.only(top=20, left=10, right=10),
-                    padding=ft.padding.only(bottom=10)
-                )
-            )
+        # # Добавляем статистику использования в конец меню
+        # if hasattr(self.app, 'usage_stats'):
+        #     stats_widget = self.app.usage_stats.create_stats_widget()
+        #     menu_items.append(
+        #         ft.Container(
+        #             content=stats_widget,
+        #             margin=ft.margin.only(top=20, left=10, right=10),
+        #             padding=ft.padding.only(bottom=10)
+        #         )
+        #     )
         
         menu_column = ft.Column(
             controls=menu_items,
@@ -122,7 +114,12 @@ class CategorizedMenu:
         has_active_item = any(item["page"] == self.current_page for item in category_data["items"])
         
         # Для главной страницы создаём прямую ссылку без выпадающего меню
-        if category_name == "Главная":
+        if category_name in ["Доска", "Объекты", "Настройки"]:
+            page_name = {
+                "Доска": "dashboard",
+                "Объекты": "projects",
+                "Настройки": "settings"
+            }
             return ft.Container(
                 content=ft.Row([
                     ft.Icon(
@@ -138,7 +135,7 @@ class CategorizedMenu:
                     )
                 ], spacing=10),
                 padding=ft.padding.only(left=15, right=15, top=10, bottom=10),
-                on_click=lambda e, page="home": self.navigate_to_page(page),
+                on_click=lambda e, page=page_name[category_name]: self.navigate_to_page(page),
                 border_radius=8,
                 bgcolor=ft.Colors.BLUE_50 if has_active_item else ft.Colors.TRANSPARENT,
                 border=ft.border.all(1, ft.Colors.BLUE_200) if has_active_item else None,
@@ -267,9 +264,9 @@ class CategorizedMenu:
         logger.debug(f"Переход к странице: {page_name}")
         self.current_page = page_name
         
-        # Увеличиваем счётчик использования
-        if hasattr(self.app, 'usage_stats'):
-            self.app.usage_stats.increment_usage(page_name)
+        # # Увеличиваем счётчик использования
+        # if hasattr(self.app, 'usage_stats'):
+        #     self.app.usage_stats.increment_usage(page_name)
         
         self.app.show_page(page_name)
         

@@ -2,6 +2,7 @@ import flet as ft
 from pathlib import Path
 
 from src.models.settings_model import Settings
+from src.pages.wood_waste import WoodWastePage
 from src.services.database_service import DatabaseService
 
 from src.utils.logger_config import setup_logging, get_logger, log_exception
@@ -13,13 +14,7 @@ from src.components.menu_search import MenuSearch
 
 from src.pages.home_page import HomePage
 from src.pages.documents_page import DocumentsPage
-from src.pages.coordinates_page import CoordinatesPage
-from src.pages.conversion_page import ConversionPage
-from src.pages.autocad_page import AutocadPage
-from src.pages.taxation_page import TaxationPage
 from src.pages.settings_page import SettingsPage
-from src.pages.scale_page import ScalePage
-from src.pages.cartogram_page import CartogramPage
 
 
 # Настройка логирования
@@ -324,18 +319,11 @@ class GeoOfficeApp:
         """Инициализация всех страниц"""
         logger.debug("📚 Инициализация страниц приложения")
         self.pages = {
+            # 'dashboard': DashboardPage(self),   TODO: cоздать страницу доски
             'home': HomePage(self),
-            'documents': DocumentsPage(self),
-            'documents_import': DocumentsPage(self),  # Заглушка - используем ту же страницу
-            'documents_export': DocumentsPage(self),  # Заглушка - используем ту же страницу
-            'documents_archive': DocumentsPage(self),  # Заглушка - используем ту же страницу
-            'coordinates': CoordinatesPage(self),
-            'conversion': ConversionPage(self),
-            'scale': ScalePage(self),
-            'autocad': AutocadPage(self),
-            'taxation': TaxationPage(self),
+            'create_documents': DocumentsPage(self),  # Заглушка - используем ту же страницу
+            'wood_waste': WoodWastePage(self),
             'settings': SettingsPage(self),
-            'cartogram': CartogramPage(self),
         }
         logger.info(f"✅ Инициализировано {len(self.pages)} страниц")
 
