@@ -232,7 +232,7 @@ class WoodWastePage(BasePage):
 
         buttons = [reload_button, delete_button]
         match name:
-            case "dxf": buttons.insert(1, upload_dxf_button)
+            case "dxf": buttons.append(upload_dxf_button)
             case "xls": buttons.append(extraction_button)
             case "out": buttons.extend([calculation_button, summary_button])
             case _: raise exception
