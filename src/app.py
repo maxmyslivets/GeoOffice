@@ -1,3 +1,5 @@
+import traceback
+
 import flet as ft
 from pathlib import Path
 
@@ -5,6 +7,7 @@ from src.components.menu import Menu
 from src.models.settings_model import Settings
 from src.pages.projects_page import ProjectsPage
 from src.pages.tools_page import ToolsPage
+from src.services.background_service import BackgroundService
 from src.services.database_service import DatabaseService
 
 from src.utils.logger_config import setup_logging, get_logger, log_exception
@@ -31,6 +34,8 @@ class GeoOfficeApp:
         self.menu = None
         # Контейнер для основного содержимого
         self.content = None
+
+        self.background_service = BackgroundService()
 
         # Инициализация настроек
         self.settings = Settings(data=None)
@@ -112,7 +117,7 @@ class GeoOfficeApp:
         menu_items = [
             ("Доска", {"icon": ft.Icons.DASHBOARD, "page": DashboardPage}),
             ("Объекты", {"icon": ft.Icons.ARTICLE, "page": ProjectsPage}),
-            ("Инструменты", {"icon": ft.Icons.BUILD, "page": ToolsPage}),
+            # ("Инструменты", {"icon": ft.Icons.BUILD, "page": ToolsPage}),
             ("Настройки", {"icon": ft.Icons.SETTINGS, "page": SettingsPage}),
         ]
 
@@ -221,8 +226,8 @@ class GeoOfficeApp:
             self.settings.interface.top = int(self.page.window.top)
             # self.settings.interface.last_page = self.page
             self.save_settings()
-        except:
-            pass
+        except Exception as e:
+            traceback.print_exc()
 
 
 @log_exception

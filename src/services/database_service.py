@@ -3,11 +3,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from pony.orm import Database as PonyDatabase
+from pony.orm import Database as PonyDatabase, select
 from pony.orm import db_session
 
 from src.models.database_model import Database
-from src.models.project_model import Project
 from src.utils.file_utils import FileUtils
 from src.utils.logger_config import log_exception, get_logger
 
@@ -78,9 +77,15 @@ class DatabaseService:
 
     @log_exception
     @db_session
-    def get_project(self, project_id: int) -> Any:
+    def get_project_from_id(self, project_id: int) -> Any:
         logger.debug(f"Получение проекта по id: id={project_id}")
         return self.models.Project[project_id]
+
+    @log_exception
+    @db_session
+    def get_project_from_path(self, path: str | Path) -> Any:
+        logger.debug(f"Получение проекта по пути: path={path}")
+        return self.models.Project.select_by_sql("SELECT * FROM Объекты WHERE path = $path")[0]
 
     @log_exception
     @db_session

@@ -1,11 +1,12 @@
+import re
 import sys
 from pathlib import Path
 
 import flet as ft
+from flet.core import icon
 
 from .base_page import BasePage
 from ..components.banners import BannerDiffProjects
-from ..services.background_service import BackgroundService
 from ..services.project_service import ProjectService
 from ..utils.logger_config import log_exception
 
@@ -27,10 +28,6 @@ class ProjectsPage(BasePage):
         self.loading_indicator = None
         self.search_field = None
         self.project_service = ProjectService(app.database_service)
-        # Получаем или создаем BackgroundService
-        # if not hasattr(app, 'background_service'):
-        #     app.background_service = BackgroundService()
-        # self.start_periodic_diff()
 
     def get_content(self):
         """
@@ -55,26 +52,16 @@ class ProjectsPage(BasePage):
         self.loading_indicator = ft.ProgressRing(visible=False, width=30, height=30)
         self.results_container = ft.Container(
             content=ft.Text("Результаты поиска появятся здесь..."),
-            # padding=10,
-            # border_radius=8,
-            # margin=ft.margin.only(top=10)
         )
         self.project_search(empty_search=True)
         return ft.Column([
-            ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
-            # ft.Container(
-            #     content=ft.Column([
-            #         ft.Row([
-            #             self.search_field,
-            #             self.loading_indicator
-            #         ], spacing=10, expand=True),
-            #         self.results_container
-            #     ]),
-            #     padding=20,
-            #     border_radius=8,
-            #     margin=ft.margin.only(top=10, bottom=10),
-            #     expand=True
-            # )
+            ft.Row([
+                ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
+                ft.ElevatedButton(
+                    text="Проверить базу данных",
+                    on_click=lambda e: self.start_diff_project(),
+                )
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Row([
                 self.search_field,
                 self.loading_indicator
@@ -106,7 +93,6 @@ class ProjectsPage(BasePage):
         else:
             results = self.project_service.search_projects(self.search_query)
         items = []
-        import re
         query_text = self.search_query.strip()
         highlight_re = re.compile(re.escape(query_text), re.IGNORECASE)
         for project_id, number, name, customer in results:
@@ -130,7 +116,7 @@ class ProjectsPage(BasePage):
                     subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
                     on_click=lambda e, pid=project_id: self.app.show_project_page(pid),
                     dense=True,
-                    bgcolor=ft.Colors.BLUE_50
+                    # bgcolor=ft.Colors.BLUE_50
                 )
             )
         if not items:
@@ -141,46 +127,137 @@ class ProjectsPage(BasePage):
                 scroll=ft.ScrollMode.AUTO,
                 # height=400,
             )
+
         self.loading_indicator.visible = False
         self.page.update()
 
-    # @log_exception
-    # def diff_projects(self):
-    #     """
-    #     Запускает процесс сравнения проектов в файловой системе и проектов из базы данных.
-    #     """
-    #
-    #     diff = self.project_service.diff_projects(
-    #         Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
-    #     count_only_in_files = len(diff["only_in_files"])
-    #     count_only_in_database = len(diff["only_in_database"])
-    #     text = "Требуется обновление базы данных."
-    #     if (count_only_in_files + count_only_in_database) > 0:
-    #         if count_only_in_files > 0:
-    #             text += f"\nНайдено новых объектов: {count_only_in_files}"
-    #         if count_only_in_database > 0:
-    #             text += f"\nУдалено объектов: {count_only_in_database}"
-    #         banner = BannerDiffProjects(self.app)
-    #         banner.create(text,
-    #                       {
-    #                           "Обновить": lambda e: (
-    #                               banner.close_banner(e),
-    #                               self.app.show_error("Функция в разработке")  # TODO: Заглушка
-    #                           ),
-    #                           "Отложить обновление": banner.close_banner
-    #                       })
-    #         banner.show()
-    #
-    # @log_exception
-    # def start_periodic_diff(self):
-    #     """Запуск периодической проверки проектов через BackgroundService"""
-    #     # Останавливаем предыдущую задачу, если она существует
-    #     self.app.background_service.stop_task("diff_projects")
-    #
-    #     # Запускаем новую задачу
-    #     self.app.background_service.start_periodic_task(
-    #         task_name="diff_projects",
-    #         task_func=self.diff_projects,
-    #         initial_delay=5,  # до первого запуска
-    #         interval=30 * 60  # между запусками
-    #     )
+    @log_exception
+    def diff_projects(self):
+        """
+        Запускает процесс сравнения проектов в файловой системе и проектов из базы данных.
+        """
+        diff = self.project_service.diff_projects(
+            Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
+        count_only_in_files = len(diff["only_in_files"])
+        count_only_in_database = len(diff["only_in_database"])
+        text = "Требуется обновление базы данных."
+        if (count_only_in_files + count_only_in_database) > 0:
+            if count_only_in_files > 0:
+                text += f"\nНет в базе данных: {count_only_in_files}"
+            if count_only_in_database > 0:
+                text += f"\nНет в файловой системе: {count_only_in_database}"
+            banner = BannerDiffProjects(self.app)
+            banner.create(text,
+                          {
+                              "Обновить": lambda e: (
+                                  banner.close_banner(e),
+                                  self.show_diff_projects(diff["only_in_files"], diff["only_in_database"])
+                              ),
+                              "Отмена": banner.close_banner
+                          })
+            banner.show()
+        else:
+            self.app.show_info("База данных актуальна")
+
+    @log_exception
+    def show_diff_projects(self, only_in_files, only_in_database):
+
+        def find_exist(text):
+            self.page.close(dlg)
+            self.search_field.value = Path(text).name
+            self.results_container.content = ft.Text("Ничего не найдено", color=ft.Colors.GREY_500)
+            self.page.update()
+
+        def show_exist(text):
+            project_id = self.app.database_service.get_project_from_path(text).id
+            self.page.close(dlg)
+            if project_id is None:
+                self.app.show_error(f"Объект с расположением `{text}` не найден в базе данных. "
+                                    f"Попробуйте найти вручную через поиск объектов.")
+            self.app.show_project_page(project_id)
+
+        def delete_exist(text):
+            project_id = self.app.database_service.get_project_from_path(text).id
+            self.page.close(dlg)
+            if project_id is None:
+                self.app.show_error(f"Объект с расположением `{text}` не найден в базе данных. "
+                                    f"Попробуйте найти вручную через поиск объектов.")
+            # self.app.project_service.delete_project(project_id)   # TODO: допилить метод `project_service.delete_project`
+            self.app.show_warning("Функция в разработке")
+
+        content = ft.Container(
+            content = ft.Column([
+                ft.Column([
+                    ft.Text("Нет в базе данных", size=20, weight=ft.FontWeight.BOLD),
+                    ft.Text("Если объект ранее не находился в базе данных, необходимо создать проект объекта.\n"
+                            "Если в файловой системе изменился путь к папке объекта, необходимо перейти на страницу "
+                            "объекта и изменить путь к папке.", size=14, weight=ft.FontWeight.W_200),
+                ]),
+                ft.Column([
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.DESCRIPTION),
+                        title=ft.Text(text),
+                        trailing=ft.PopupMenuButton(
+                            icon=ft.Icons.MORE_VERT,
+                            items=[
+                                ft.PopupMenuItem(
+                                    icon=ft.Icons.ADD,
+                                    text="Добавить новый",
+                                    on_click=lambda e, t=text: self.app.show_warning("Функция в разработке")
+                                ),
+                                ft.PopupMenuItem(
+                                    icon=ft.Icons.EDIT,
+                                    text="Изменить существующий",
+                                    on_click=lambda e, t=text: find_exist(t)
+                                ),
+                            ]
+                        )
+                    )
+                    for text in only_in_files
+                ]),
+                ft.Column([
+                    ft.Text("Нет в файловой системе", size=20, weight=ft.FontWeight.BOLD),
+                    ft.Text("Если объект есть в базе данных, но в файловой системе путь к нему изменился, необходимо "
+                            "перейти на страницу объекта и изменить путь к папке.\n"
+                            "Если объект был удален из файловой системы, то необходимо перейти на страницу объекта "
+                            "и удалить объект из базы данных.", size=14, weight=ft.FontWeight.W_200),
+                ]),
+                ft.Column([
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.DESCRIPTION),
+                        title=ft.Text(text),
+                        trailing=ft.PopupMenuButton(
+                            icon=ft.Icons.MORE_VERT,
+                            items=[
+                                ft.PopupMenuItem(
+                                    icon=ft.Icons.ADD,
+                                    text="Изменить существующий",
+                                    on_click=lambda e, t=text: show_exist(t)
+                                ),
+                                ft.PopupMenuItem(
+                                    icon=ft.Icons.DELETE,
+                                    text="Удалить существующий",
+                                    on_click=lambda e, t=text: delete_exist(t)
+                                ),
+                            ]
+                        )
+                    )
+                    for text in only_in_database
+                ]),
+            ], scroll=ft.ScrollMode.AUTO, expand=True),
+        )
+        dlg = ft.AlertDialog(content=content,)
+        self.page.open(dlg)
+
+    @log_exception
+    def start_diff_project(self):
+        """Запуск периодической проверки проектов через BackgroundService"""
+        # Останавливаем предыдущую задачу, если она существует
+        if "diff_projects" in self.app.background_service.get_tasks().keys():
+            self.app.background_service.stop_task("diff_projects")
+
+        # Запускаем новую задачу
+        self.app.background_service.start_task(
+            task_name="diff_projects",
+            task_func=self.diff_projects
+        )

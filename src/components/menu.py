@@ -3,9 +3,6 @@ import flet as ft
 from src.utils.logger_config import get_logger
 
 
-logger = get_logger("components.menu")
-
-
 class Menu:
     """
     Меню.

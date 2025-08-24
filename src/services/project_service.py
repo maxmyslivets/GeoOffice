@@ -31,7 +31,7 @@ class ProjectService:
         :param project_id: id проекта
         :return: Данные проекта или None если не найден
         """
-        project_data = self.database_service.get_project(project_id).to_dict()
+        project_data = self.database_service.get_project_from_id(project_id).to_dict()
         project_data['created_date'] = datetime.fromisoformat(project_data['created_date'])
         project_data['modified_date'] = datetime.fromisoformat(project_data['modified_date'])
         return Project(**project_data)
@@ -76,17 +76,15 @@ class ProjectService:
         :return: ...
         """
 
-        project_dirname_pattern = re.compile(r"^(?:\d{1,3}|NN)\.\d{2}(?:\s.+)?$")
-
         projects_in_files = []
-        for dirpath, dirnames, filenames in os.walk(projects_dirpath):
-            for dirname in dirnames:
-                if project_dirname_pattern.match(dirname):
-                    # match = re.match(r"^((?:\d{1,3}|NN)\.\d{2})(?:\s+(.*))?$", dirname)
-                    # number = match.group(1)
-                    # name = match.group(2) or ""
-                    projects_in_files.append((Path(dirpath) / dirname).relative_to(projects_dirpath))
-        projects_in_files = set(projects_in_files)
+
+        if not isinstance(projects_dirpath, Path):
+            projects_dirpath = Path(projects_dirpath)
+
+        for item in projects_dirpath.rglob(".geo_office_project"):
+            projects_in_files.append(item.parent.relative_to(projects_dirpath))
+
+        projects_in_files = set([str(path) for path in projects_in_files])
         projects_in_database = set(p.path for p in list(self.database_service.get_all_projects()))
 
         return {

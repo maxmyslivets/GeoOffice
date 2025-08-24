@@ -3,9 +3,6 @@ from pathlib import Path
 import flet as ft
 
 from src.utils.file_utils import FileUtils
-from src.utils.logger_config import get_logger
-
-logger = get_logger("components.categorized_menu")
 
 
 class LinkSection:

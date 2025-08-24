@@ -19,6 +19,27 @@ class BackgroundService:
         self._lock = threading.Lock()
         logger.info("Инициализирован сервис фоновых задач")
 
+    def get_tasks(self) -> Dict[str, threading.Thread]:
+        return self._tasks
+
+    def start_task(self, task_name: str, task_func: Callable):
+        with self._lock:
+            if task_name in self._tasks and self._tasks[task_name].is_alive():
+                logger.warning(f"Задача {task_name} уже запущена")
+                return False
+
+            # Создаем событие для остановки
+            stop_event = threading.Event()
+            self._stop_events[task_name] = stop_event
+
+            # Создаем и запускаем поток
+            thread = threading.Thread(target=task_func, daemon=True, name=f"BackgroundTask-{task_name}")
+            self._tasks[task_name] = thread
+            thread.start()
+
+            logger.info(f"Запущена фоновая задача: {task_name}")
+            return True
+
     @log_exception
     def start_periodic_task(self, task_name: str, task_func: Callable,
                             initial_delay: float = 1.0,
@@ -106,11 +127,10 @@ class BackgroundService:
     @log_exception
     def stop_all_tasks(self):
         """Останавливает все задачи"""
-        with self._lock:
-            task_names = list(self._tasks.keys())
-            for task_name in task_names:
-                self.stop_task(task_name)
-            logger.info("Все фоновые задачи остановлены")
+        task_names = list(self._tasks.keys())
+        for task_name in task_names:
+            self.stop_task(task_name)
+        logger.info("Все фоновые задачи остановлены")
 
     def __del__(self):
         """Деструктор - останавливает все задачи при удалении объекта"""

@@ -106,10 +106,15 @@ class ProjectPage(BasePage):
     def create_link_section(self):
         project_path = self.project.get_path(
             Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
-        links = [[name, Path(project_path) / name]
-                 for name in os.listdir(project_path) if (Path(project_path) / name).is_dir()]
+        try:
+            links = [[name, Path(project_path) / name]
+                     for name in os.listdir(project_path) if (Path(project_path) / name).is_dir()]
+        except FileNotFoundError as e:
+            self.app.show_warning(e)
+            links = []
         links.insert(0, [self.project.number, project_path])
-        return LinkSection(self.app).create(title="Быстрый доступ", links=links, is_edit=False)
+        link_section = LinkSection(self.app).create(title="Быстрый доступ", links=links, is_edit=False)
+        return link_section
 
     @log_exception
     def create_deadline_card(self):
