@@ -37,7 +37,6 @@ class GeoOfficeApp:
     def __init__(self):
         logger.info("Инициализация приложения GeoOffice")
         self.page = None
-        # self.current_view = None
 
         self.storage_path = os.getenv("FLET_APP_STORAGE_DATA")
         self.temp_path = os.getenv("FLET_APP_STORAGE_TEMP")
@@ -54,8 +53,9 @@ class GeoOfficeApp:
         self.load_settings()
 
         # Инициализация базы данных
-        self.database_service: DatabaseService | None = None
-        self.init_database()
+        self.database_service = DatabaseService(
+            Path(self.settings.paths.file_server) / self.settings.paths.database_path)
+        self.connect_database()
 
         logger.info("Приложение инициализировано")
 
@@ -234,13 +234,11 @@ class GeoOfficeApp:
             logger.error(f"Ошибка показа информации: {e}")
 
     @log_exception
-    def init_database(self):
+    def connect_database(self):
         try:
-            self.database_service = DatabaseService(
-                Path(self.settings.paths.file_server) / self.settings.paths.database_path)
+            self.database_service.connection()
         except Exception as e:
-            logger.error(f"Ошибка при инициализации/создании базы данных\n{e}")
-            self.show_error(f"Ошибка при инициализации/создании базы данных")
+            logger.error(f"Ошибка подключения к базе данных\n{e}")
 
 
 @log_exception

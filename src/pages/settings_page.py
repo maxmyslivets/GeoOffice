@@ -1,8 +1,11 @@
+import traceback
 from pathlib import Path
 from typing import Any
 
 import flet as ft
 from datetime import datetime
+
+from services.database_service import DatabaseService
 from .base_page import BasePage
 
 
@@ -27,9 +30,10 @@ class SettingsPage(BasePage):
                                                          self.path_file_server_text_field, 'file_server'))
         # Выбор папки проектов
         self.path_projects_folder_text_field = ft.TextField(label="Папка объектов",
-                                                            value=self.app.settings.paths.projects_folder,
+                                                            value=f"{self.app.settings.paths.file_server}\\"
+                                                                  f"{self.app.settings.paths.projects_folder}",
                                                             on_change=lambda e: self._reset_text_error(
-                                                                self.path_file_server_text_field),
+                                                                self.path_projects_folder_text_field),
                                                             expand=True)
         self.path_projects_folder_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24,
                                                          tooltip="Выбрать путь",
@@ -39,11 +43,13 @@ class SettingsPage(BasePage):
         self.path_database_text_field = ft.TextField(label="Путь к базе данных",
                                                      value=self.app.settings.paths.database_path,
                                                      on_change=lambda e: self._reset_text_error(
-                                                         self.path_file_server_text_field),
+                                                         self.path_database_text_field),
                                                      expand=True)
         self.path_database_file_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24, tooltip="Выбрать путь",
                                                        on_click=lambda e: self._select_file_action(
                                                            self.path_database_text_field, 'database_path'))
+        # Тест подключения к БД
+        self.test_connection_button = ft.TextButton(text="Тест соединения ...", on_click=self._test_connection)
 
     def _dark_mode_change(self, e):
         if self.dark_mode_switch.value:
@@ -61,6 +67,8 @@ class SettingsPage(BasePage):
         def on_result(e: ft.FilePickerResultEvent):
             if e.path:
                 obj.value = e.path
+                self._reset_text_error(obj)
+                self.page.update()
 
         pick_files_dialog = ft.FilePicker(on_result=on_result)
         self.page.overlay.append(pick_files_dialog)
@@ -71,6 +79,8 @@ class SettingsPage(BasePage):
         def on_result(e: ft.FilePickerResultEvent):
             if e.path:
                 obj.value = e.path
+                self._reset_text_error(obj)
+                self.page.update()
 
         pick_files_dialog = ft.FilePicker(on_result=on_result)
         self.page.overlay.append(pick_files_dialog)
@@ -79,7 +89,17 @@ class SettingsPage(BasePage):
 
     def _reset_text_error(self, obj: Any) -> None:
         obj.error_text = None
+        print("_reset_text_error", obj.error_text)
         self.page.update()
+
+    def _test_connection(self, e) -> None:
+        test_database_service = DatabaseService(self.path_database_text_field.value)
+        try:
+            test_database_service.connection()
+            self.app.show_info("Соединение установлено!")
+        except Exception as e:
+            self.app.show_error("Соединение не установлено!")
+            self.logger.error(f"Ошибка тестового подключения к базе данных:\n{traceback.format_exc()}")
 
     def get_content(self):
         """
@@ -111,6 +131,7 @@ class SettingsPage(BasePage):
                 ft.Text("База данных", size=18, weight=ft.FontWeight.BOLD),
                 ft.Row([self.path_database_text_field, self.path_database_file_button]),
             ]),
+            self.test_connection_button,
 
             ft.Row([
                 ft.ElevatedButton("Сброс настроек", icon=ft.Icons.RESTORE, on_click=self.reset_settings),
@@ -125,7 +146,18 @@ class SettingsPage(BasePage):
         """
         self.app.settings.init_default_settings()
         self.app.save_settings()
-        self.app.show_info("Выполнен сброс настроек приложения к значениям по умолчанию")
+
+        self.app.database_service = DatabaseService(self.app.settings.paths.database_path)
+
+        self.path_file_server_text_field.value = self.app.settings.paths.file_server
+        self.path_projects_folder_text_field.value = (f"{self.app.settings.paths.file_server}\\"
+                                                      f"{self.app.settings.paths.projects_folder}")
+        self.path_database_text_field.value = self.app.settings.paths.database_path
+
+        self.dark_mode_switch.value = False
+        self._dark_mode_change(None)
+
+        self.app.page.update()
 
     def apply(self, e=None):
         """
@@ -139,19 +171,29 @@ class SettingsPage(BasePage):
             return Path(filepath).exists()
 
         if check_dir(self.path_file_server_text_field.value):
+            self.path_file_server_text_field.error_text = None
             self.app.settings.paths.file_server = self.path_file_server_text_field.value
             self.app.save_settings()
         else:
             self.path_file_server_text_field.error_text = "Неверный путь"
 
         if check_dir(self.path_projects_folder_text_field.value):
-            self.app.settings.paths.projects_folder = self.path_projects_folder_text_field.value
-            self.app.save_settings()
+            if self.path_projects_folder_text_field.value.startswith(self.path_file_server_text_field.value):
+                self.path_projects_folder_text_field.error_text = None
+                self.app.settings.paths.projects_folder = self.path_projects_folder_text_field.value[
+                                                          len(self.path_file_server_text_field.value) + 1:]
+                self.app.save_settings()
+            else:
+                self.path_projects_folder_text_field.error_text = ("Папка не находится на файловом сервере либо "
+                                                                   "неверно указано расположение файлового сервера")
         else:
             self.path_projects_folder_text_field.error_text = "Неверный путь"
 
         if check_file(self.path_database_text_field.value):
+            self.path_database_text_field.error_text = None
             self.app.settings.paths.database_path = self.path_database_text_field.value
+            self.app.database_service = DatabaseService(self.app.settings.paths.database_path)
+            self.app.database_service.connection()
             self.app.save_settings()
         else:
             self.path_database_text_field.error_text = "Неверный путь"

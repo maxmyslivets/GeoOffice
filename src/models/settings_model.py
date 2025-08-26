@@ -75,8 +75,6 @@ class Settings:
 
     def init_default_settings(self) -> None:
         """Инициализация настроек по умолчанию"""
-        file_server = r'\\server-r\igi'
-
         self.interface = Interface(
             dark_mode=False,
             width=800,
@@ -85,16 +83,13 @@ class Settings:
             top=10,
         )
         self.paths = Paths(
-            file_server=file_server,
-            projects_folder='Work\\Объекты',
+            file_server="...",
+            projects_folder='...',
             favorite_folders=[
-                ['сервер IGI', file_server],
-                ['сервер NFVGP', r'\\server\Объекты'],
-                ['NF', file_server + '\\NF'],
                 ['Запись', 'D:\\Запись'],
                 ['Scan', 'D:\\scan'],
             ],
-            database_path=file_server+'\\geo_office.db'
+            database_path='\\geo_office.db'
         )
 
     def add_favorite_folder(self, name: str, path: str) -> None:

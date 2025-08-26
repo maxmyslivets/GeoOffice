@@ -26,7 +26,7 @@ class ProjectsPage(BasePage):
         self.results_container = None
         self.loading_indicator = None
         self.search_field = None
-        self.project_service = ProjectService(app.database_service)
+        self.project_service = ProjectService(self.app.database_service)
 
     def get_content(self):
         """
@@ -87,6 +87,11 @@ class ProjectsPage(BasePage):
         """
         Запускает поиск по объектам и обновляет UI с результатами.
         """
+        if not self.app.database_service.connected:
+            self.loading_indicator.visible = False
+            self.page.update()
+            self.app.show_error("База данных не подключена")
+            return
         if empty_search:
             results = self.project_service.search_projects(self.search_query, return_all=True, limit=50)
         else:
@@ -135,6 +140,9 @@ class ProjectsPage(BasePage):
         """
         Запускает процесс сравнения проектов в файловой системе и проектов из базы данных.
         """
+        if not self.app.database_service.connected:
+            self.app.show_error("База данных не подключена")
+            return
         diff = self.project_service.diff_projects(
             Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
         count_only_in_files = len(diff["only_in_files"])

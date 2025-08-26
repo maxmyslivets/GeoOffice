@@ -26,27 +26,22 @@ class DatabaseService:
         :param path: Путь к файлу базы данных
         """
         self._path = Path(path)
+        self.db: PonyDatabase | None = None
+        self.models: Any = None
+        self.connected = False
+
+    @log_exception
+    @db_session
+    def connection(self) -> None:
+        logger.info(f"Инициализация базы данных: {self._path}")
         self.db = PonyDatabase()
-
-        try:
-            logger.info(f"Инициализация базы данных: {self._path}")
-
-            # Привязываем базу данных
-            self.db.bind(provider='sqlite', filename=str(self._path), create_db=True)
-
-            # Ставим защиту на файл (скрываем)
-            FileUtils.manage_file_attributes(file_path=str(self._path), action="protect")
-
-            # Инициализация моделей
-            self.models = Database(self.db).models
-
-            # Генерируем схемы таблиц
-            self.db.generate_mapping(create_tables=True)
-
-            logger.info("База данных успешно инициализирована")
-
-        except Exception as e:
-            raise Exception(traceback.format_exc())
+        self.db.bind(provider='sqlite', filename=str(self._path))
+        # Инициализация моделей
+        self.models = Database(self.db).models
+        # Генерируем схемы таблиц
+        self.db.generate_mapping()
+        self.connected = True
+        logger.info("База данных успешно инициализирована")
 
     @log_exception
     @db_session
