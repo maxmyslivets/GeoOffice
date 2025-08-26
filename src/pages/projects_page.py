@@ -3,12 +3,11 @@ import sys
 from pathlib import Path
 
 import flet as ft
-from flet.core import icon
 
 from .base_page import BasePage
-from ..components.banners import BannerDiffProjects
-from ..services.project_service import ProjectService
-from ..utils.logger_config import log_exception
+from components.banners import BannerDiffProjects
+from services.project_service import ProjectService
+from utils.logger_config import log_exception
 
 sys.path.append("..")
 

@@ -1,14 +1,15 @@
 import os
 import subprocess
+import traceback
 from pathlib import Path
 from typing import Any
 
 from pony.orm import Database as PonyDatabase, select
 from pony.orm import db_session
 
-from src.models.database_model import Database
-from src.utils.file_utils import FileUtils
-from src.utils.logger_config import log_exception, get_logger
+from models.database_model import Database
+from utils.file_utils import FileUtils
+from utils.logger_config import log_exception, get_logger
 
 logger = get_logger("services.database_service")
 
@@ -45,7 +46,7 @@ class DatabaseService:
             logger.info("База данных успешно инициализирована")
 
         except Exception as e:
-            logger.error(f"Ошибка при инициализации/создании базы данных: {e}")
+            raise Exception(traceback.format_exc())
 
     @log_exception
     @db_session

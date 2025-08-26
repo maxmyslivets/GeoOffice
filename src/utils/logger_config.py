@@ -5,6 +5,7 @@ import logging
 import logging.handlers
 import os
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -51,7 +52,7 @@ class GeoOfficeLogger:
     
     def __init__(self, app_name="GeoOffice"):
         self.app_name = app_name
-        self.log_dir = Path("storage") / "logs"
+        self.log_dir = Path(os.getenv("FLET_APP_STORAGE_DATA")) / "logs"
         self.log_dir.mkdir(exist_ok=True)
         
         # Создаем основной логгер приложения
@@ -82,8 +83,7 @@ class GeoOfficeLogger:
 
         # Цветной форматтер для консоли
         self.simple_formatter = ColoredFormatter(
-            fmt='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
-            datefmt='%H:%M:%S'
+            fmt='%(name)s | %(levelname)-8s | %(funcName)s() | %(message)s'
         )
 
         # Красивый форматтер для пользовательского интерфейса
@@ -184,11 +184,11 @@ class GeoOfficeLogger:
         Логирование запуска приложения (выводит информацию о запуске).
         """
         self.logger.info("=" * 60)
-        self.logger.info(f"🚀 Запуск приложения {self.app_name}")
-        self.logger.info(f"📅 Дата и время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info(f"🐍 Версия Python: {sys.version}")
-        self.logger.info(f"📁 Рабочая директория: {os.getcwd()}")
-        self.logger.info(f"📂 Директория логов: {self.log_dir.absolute()}")
+        self.logger.info(f"Запуск приложения {self.app_name}")
+        self.logger.info(f"Дата и время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.logger.info(f"Версия Python: {sys.version}")
+        self.logger.info(f"Рабочая директория: {os.getcwd()}")
+        self.logger.info(f"Директория логов: {self.log_dir.absolute()}")
         self.logger.info("=" * 60)
     
     def log_shutdown(self):
@@ -196,8 +196,8 @@ class GeoOfficeLogger:
         Логирование завершения приложения (выводит информацию о завершении).
         """
         self.logger.info("=" * 60)
-        self.logger.info(f"🛑 Завершение приложения {self.app_name}")
-        self.logger.info(f"📅 Дата и время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.logger.info(f"Завершение приложения {self.app_name}")
+        self.logger.info(f"Дата и время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         self.logger.info("=" * 60)
 
 
@@ -237,13 +237,13 @@ def log_function_call(func):
     """
     def wrapper(*args, **kwargs):
         logger = get_logger(func.__module__)
-        logger.debug(f"🔵 Вызов функции: {func.__name__}")
+        logger.debug(f"Вызов функции: {func.__name__}")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"✅ Функция {func.__name__} выполнена успешно")
+            logger.debug(f"Функция {func.__name__} выполнена успешно")
             return result
         except Exception as e:
-            logger.error(f"❌ Ошибка в функции {func.__name__}: {str(e)}")
+            logger.error(f"Ошибка в функции {func.__name__}: {str(e)}")
             raise
     return wrapper
 
@@ -259,6 +259,6 @@ def log_exception(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            logger.exception(f"💥 Исключение в {func.__name__}: {str(e)}")
+            logger.exception(f"Исключение в {func.__name__}: {str(e)}")
             raise
     return wrapper

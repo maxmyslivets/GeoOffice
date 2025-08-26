@@ -1,7 +1,7 @@
 import threading
 import time
 from typing import Dict, Callable, Any
-from src.utils.logger_config import get_logger, log_exception
+from utils.logger_config import get_logger, log_exception
 
 logger = get_logger("services.background_service")
 

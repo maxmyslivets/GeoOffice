@@ -1,34 +1,44 @@
+import os
 import traceback
-
-import flet as ft
 from pathlib import Path
 
-from src.components.menu import Menu
-from src.models.settings_model import Settings
-from src.pages.projects_page import ProjectsPage
-from src.pages.tools_page import ToolsPage
-from src.services.background_service import BackgroundService
-from src.services.database_service import DatabaseService
+import flet as ft
 
-from src.utils.logger_config import setup_logging, get_logger, log_exception
-from src.utils.file_utils import FileUtils
+from pages.dashboard_page import DashboardPage
+from pages.projects_page import ProjectsPage
+from pages.project_page import ProjectPage
+from pages.tools_page import ToolsPage
+from pages.settings_page import SettingsPage
 
-from src.pages.dashboard_page import DashboardPage
-# from src.pages.projects_page import ProjectsPage
-# from src.pages.tools_page import ToolsPage
-from src.pages.settings_page import SettingsPage
+from components.menu import Menu
+
+from models.settings_model import Settings
+
+from services.background_service import BackgroundService
+from services.database_service import DatabaseService
+
+from utils.logger_config import setup_logging, get_logger, log_exception
+from utils.file_utils import FileUtils
 
 
 # Настройка логирования
 logger = get_logger("main")
 
+def flet_log():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+# flet_log()
+
 
 class GeoOfficeApp:
     @log_exception
     def __init__(self):
-        logger.info("🔧 Инициализация приложения GeoOffice")
+        logger.info("Инициализация приложения GeoOffice")
         self.page = None
         # self.current_view = None
+
+        self.storage_path = os.getenv("FLET_APP_STORAGE_DATA")
+        self.temp_path = os.getenv("FLET_APP_STORAGE_TEMP")
 
         # Меню
         self.menu = None
@@ -45,35 +55,35 @@ class GeoOfficeApp:
         self.database_service: DatabaseService | None = None
         self.init_database()
 
-        logger.info("✅ Приложение инициализировано")
+        logger.info("Приложение инициализировано")
 
     @log_exception
     def load_settings(self) -> None:
         """Чтение настроек приложения"""
-        logger.debug("📂 Чтение настроек приложения")
-        settings_data = FileUtils.load_json(Path("storage") / "data" / "settings.json")
+        logger.debug("Чтение настроек приложения")
+        settings_data = FileUtils.load_json(Path(self.storage_path) / "settings.json")
         if settings_data is not None:
             try:
                 self.settings = Settings(data=settings_data)
-                logger.info("✅ Настройки загружены успешно")
+                logger.info("Настройки загружены успешно")
             except Warning as e:
                 logger.warning(e)
         else:
-            logger.info("📝 Создание настроек по умолчанию")
+            logger.info("Создание настроек по умолчанию")
             self.save_settings()
 
     @log_exception
     def save_settings(self):
         """Сохранение настроек приложения"""
-        logger.debug("💾 Сохранение настроек приложения")
-        if FileUtils.save_json(self.settings.to_dict(), Path("storage") / "data" / "settings.json"):
-            logger.info("✅ Настройки успешно сохранены")
+        logger.debug("Сохранение настроек приложения")
+        if FileUtils.save_json(self.settings.to_dict(), Path(self.storage_path) / "settings.json"):
+            logger.info("Настройки успешно сохранены")
         else:
-            logger.error("❌ Ошибка сохранения настроек")
+            logger.error("Ошибка сохранения настроек")
 
     @log_exception
     def main(self, page: ft.Page):
-        logger.info("🎨 Инициализация пользовательского интерфейса")
+        logger.info("Инициализация пользовательского интерфейса")
         self.page = page
         page.title = "GeoOffice"
         page.theme_mode = self.settings.interface.theme
@@ -84,6 +94,15 @@ class GeoOfficeApp:
         page.window.left = self.settings.interface.left
         page.window.top = self.settings.interface.top
         page.padding = 20
+
+        # Установка обработчика события для окна
+        def window_event_handler(e: ft.WindowEvent):
+            self.settings.interface.width = int(self.page.window.width)
+            self.settings.interface.height = int(self.page.window.height)
+            self.settings.interface.left = int(self.page.window.left)
+            self.settings.interface.top = int(self.page.window.top)
+            self.save_settings()
+        self.page.window.on_event = window_event_handler
 
         # Создание навигации
         self.create_menu()
@@ -107,12 +126,12 @@ class GeoOfficeApp:
 
         page.update()
 
-        logger.info("✅ Пользовательский интерфейс инициализирован")
+        logger.info("Пользовательский интерфейс инициализирован")
 
     @log_exception
     def create_menu(self):
         """Создание боковой навигации с категориями"""
-        logger.debug("🧭 Создание навигации с категориями")
+        logger.debug("Создание навигации с категориями")
 
         menu_items = [
             ("Доска", {"icon": ft.Icons.DASHBOARD, "page": DashboardPage}),
@@ -124,12 +143,12 @@ class GeoOfficeApp:
         # Создаем меню с категориями
         self.menu = Menu(self).create_menu(menu_items)
 
-        logger.debug("✅ Навигация с категориями создана")
+        logger.debug("Навигация с категориями создана")
 
     @log_exception
     def create_content(self):
         """Создание основного контента"""
-        logger.debug("📄 Создание основного контента")
+        logger.debug("Создание основного контента")
 
         # Создаем контейнер для основного содержимого
         self.content = ft.Container(
@@ -138,36 +157,37 @@ class GeoOfficeApp:
             expand=True
         )
 
-        logger.debug("✅ Основной контент создан")
+        logger.debug("Основной контент создан")
 
     @log_exception
     def show_page(self, page):
         """Показать страницу"""
-        logger.debug(f"📖 Отображение страницы: {page}")
-        self.content.content = page(self).get_scrollable_content()
-        self.page.update()
+        logger.debug(f"Отображение страницы: {page}")
+        try:
+            self.content.content = page(self).get_scrollable_content()
+            self.page.update()
+        except Exception as e:
+            logger.error(e)
 
     @log_exception
     def show_project_page(self, project_id):
         """Показать страницу объекта по id"""
-        logger.debug(f"📖 Отображение страницы объекта id={project_id}")
-        
+        logger.debug(f"Отображение страницы объекта id={project_id}")
         # Создаем динамическую страницу проекта
-        from src.pages.project_page import ProjectPage
         project_page = ProjectPage(self, project_id)
         project = project_page.project
-        
+
         # Отображаем страницу проекта
         self.content.content = project_page.get_scrollable_content()
 
         self.page.update()
-        logger.debug(f"✅ Страница объекта id={project.id} отображена")
+        logger.debug(f"Страница объекта id={project.id} отображена")
 
     @log_exception
     def _show_snack_bar(self, message, level='info'):
         """Показать уведомление"""
         try:
-            logger.debug(f"💬 Показ уведомления: {message}")
+            logger.debug(f"Показ уведомления: {message}")
             self.page.snack_bar = ft.SnackBar(content=ft.Text(message),
                                               behavior=ft.SnackBarBehavior.FLOATING)
             self.page.snack_bar.open = True
@@ -182,13 +202,13 @@ class GeoOfficeApp:
             self.page.overlay.append(self.page.snack_bar)
             self.page.update()
         except Exception as e:
-            logger.error(f"Ошибка показа уведомления: {e}")
+            logger.error(f"Ошибка показа уведомления: {traceback.format_exc()}")
 
     @log_exception
     def show_error(self, message):
         """Показать ошибку"""
         try:
-            logger.error(f"❌ Ошибка: {message}")
+            logger.error(f"Ошибка: {message}")
             self._show_snack_bar(f"Ошибка: {message}", 'error')
         except Exception as e:
             logger.error(f"Ошибка показа ошибки: {e}")
@@ -197,7 +217,7 @@ class GeoOfficeApp:
     def show_warning(self, message):
         """Показать предупреждение"""
         try:
-            logger.warning(f"⚠️ Предупреждение: {message}")
+            logger.warning(f"Предупреждение: {message}")
             self._show_snack_bar(f"Предупреждение: {message}", 'warning')
         except Exception as e:
             logger.error(f"Ошибка показа предупреждения: {e}")
@@ -206,40 +226,31 @@ class GeoOfficeApp:
     def show_info(self, message):
         """Показать предупреждение"""
         try:
-            logger.info(f"ℹ️ Информация: {message}")
+            logger.info(f"Информация: {message}")
             self._show_snack_bar(f"{message}", 'info')
         except Exception as e:
             logger.error(f"Ошибка показа информации: {e}")
 
     @log_exception
     def init_database(self):
-        self.database_service = DatabaseService(
-            Path(self.settings.paths.file_server) / self.settings.paths.database_path)
-
-    @log_exception
-    def __del__(self):
-        """Деструктор - выполняется при удалении страницы"""
         try:
-            self.settings.interface.width = int(self.page.window.width)
-            self.settings.interface.height = int(self.page.window.height)
-            self.settings.interface.left = int(self.page.window.left)
-            self.settings.interface.top = int(self.page.window.top)
-            # self.settings.interface.last_page = self.page
-            self.save_settings()
+            self.database_service = DatabaseService(
+                Path(self.settings.paths.file_server) / self.settings.paths.database_path)
         except Exception as e:
-            traceback.print_exc()
+            logger.error(f"Ошибка при инициализации/создании базы данных\n{e}")
+            self.show_error(f"Ошибка при инициализации/создании базы данных")
 
 
 @log_exception
 def main(page: ft.Page):
-    logger.info("🚀 Запуск главной функции приложения")
+    logger.info("Запуск главной функции приложения")
     app = GeoOfficeApp()
     app.main(page)
-    logger.info("✅ Главная функция завершена")
+    logger.info("Главная функция завершена")
 
 
 if __name__ == "__main__":
     # Настройка логирования при запуске
     setup_logging("GeoOffice")
-    logger.info("🎯 Запуск приложения GeoOffice")
+    logger.info("Запуск приложения GeoOffice")
     ft.app(target=main)

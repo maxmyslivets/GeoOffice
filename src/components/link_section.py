@@ -2,7 +2,7 @@ from pathlib import Path
 
 import flet as ft
 
-from src.utils.file_utils import FileUtils
+from utils.file_utils import FileUtils
 
 
 class LinkSection:

@@ -4,10 +4,10 @@ import flet as ft
 from pathlib import Path
 
 from .base_page import BasePage
-from src.models.project_model import Project
-from src.services.project_service import ProjectService
-from src.utils.logger_config import log_exception
-from ..components.link_section import LinkSection
+from models.project_model import Project
+from services.project_service import ProjectService
+from utils.logger_config import log_exception
+from components.link_section import LinkSection
 
 
 class ProjectPage(BasePage):

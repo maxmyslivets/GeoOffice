@@ -5,10 +5,10 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
 
-from src.models.project_model import Project
-from src.services.database_service import DatabaseService
-from src.utils.file_utils import FileUtils
-from src.utils.logger_config import log_exception, get_logger
+from models.project_model import Project
+from services.database_service import DatabaseService
+from utils.file_utils import FileUtils
+from utils.logger_config import log_exception, get_logger
 
 logger = get_logger("services.project_service")
 

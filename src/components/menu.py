@@ -1,7 +1,5 @@
 import flet as ft
 
-from src.utils.logger_config import get_logger
-
 
 class Menu:
     """

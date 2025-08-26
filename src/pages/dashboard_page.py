@@ -2,9 +2,9 @@ import sys
 import flet as ft
 
 from .base_page import BasePage
-from ..components.link_section import LinkSection
-from ..services.project_service import ProjectService
-from ..utils.logger_config import log_exception
+from components.link_section import LinkSection
+from services.project_service import ProjectService
+from utils.logger_config import log_exception
 
 sys.path.append("..")
 

@@ -1,6 +1,6 @@
 import flet as ft
 from abc import ABC, abstractmethod
-from src.utils.logger_config import get_logger, log_exception
+from utils.logger_config import get_logger, log_exception
 
 
 class BasePage(ABC):
@@ -21,7 +21,7 @@ class BasePage(ABC):
         
         # Получаем логгер для конкретной страницы
         self.logger = get_logger(f"pages.{self.__class__.__name__.lower()}")
-        self.logger.debug(f"🔧 Инициализация страницы {self.__class__.__name__}")
+        self.logger.debug(f"Инициализация страницы {self.__class__.__name__}")
     
     @abstractmethod
     def get_content(self):
@@ -37,7 +37,7 @@ class BasePage(ABC):
         Возвращает содержимое страницы с прокруткой.
         :return: Flet Container с прокручиваемым содержимым
         """
-        self.logger.debug("📄 Создание прокручиваемого контента")
+        self.logger.debug("Создание прокручиваемого контента")
         content = ft.Container(
             content=ft.Column([
                 self.get_content()
@@ -45,7 +45,7 @@ class BasePage(ABC):
             alignment=ft.alignment.top_left,
             expand=True
         )
-        self.logger.debug("✅ Прокручиваемый контент создан")
+        self.logger.debug("Прокручиваемый контент создан")
         return content
     
     @log_exception
@@ -54,8 +54,12 @@ class BasePage(ABC):
         Обновить страницу (UI).
         """
         if self.page:
-            self.logger.debug("🔄 Обновление страницы")
+            self.logger.debug("Обновление страницы")
             self.page.update()
-            self.logger.debug("✅ Страница обновлена")
+            self.logger.debug("Страница обновлена")
         else:
-            self.logger.warning("⚠️ Страница не инициализирована")
+            self.logger.warning("Страница не инициализирована")
+
+    @log_exception
+    def get_on_event_async(self):
+        self.page.on_event_async()

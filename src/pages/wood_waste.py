@@ -46,10 +46,13 @@ class WoodWastePage(BasePage):
             expand=True
         )
 
-        self.parameters_container = ft.Container(content=ft.Column([
-            self.root_percentage_wood_field,
-            self.root_percentage_shrub_field,
-        ]))
+        self.parameters_tile = ft.ExpansionTile(
+                title=ft.Text("Параметры обработки", size=16, weight=ft.FontWeight.BOLD),
+                controls=[
+                    ft.ListTile(ft.Column([self.root_percentage_wood_field, self.root_percentage_shrub_field])),
+                    # ft.ListTile(self.root_percentage_shrub_field)
+                ], collapsed_bgcolor=ft.Colors.BLUE_50
+            )
 
         self.containers = ft.Column([])
 
@@ -74,23 +77,28 @@ class WoodWastePage(BasePage):
         self._init_containers()
 
     def _open_project(self):
-        def on_result(e: ft.FilePickerResultEvent):
-            if e.path:
-                self._init_project(Path(e.path))
-                self.project_field.controls[0].value = self.project.project_path
-                self.project_field.controls[1].on_click=lambda _: FileUtils.open_folder(self.project.project_path)
-                self.project_field.controls[1].disabled=False
-                self.page.update()
 
-        pick_files_dialog = ft.FilePicker(on_result=on_result)
-        self.page.overlay.append(pick_files_dialog)
-        self.page.update()
-        pick_files_dialog.get_directory_path()
+        from src.modules.example_app.app import ExampleApp
+        from src.modules.manager import ModuleManager
+        ModuleManager(ExampleApp).run()
+
+        # def on_result(e: ft.FilePickerResultEvent):
+        #     if e.path:
+        #         self._init_project(Path(e.path))
+        #         self.project_field.controls[0].value = self.project.project_path
+        #         self.project_field.controls[1].on_click=lambda _: FileUtils.open_folder(self.project.project_path)
+        #         self.project_field.controls[1].disabled=False
+        #         self.page.update()
+        #
+        # pick_files_dialog = ft.FilePicker(on_result=on_result)
+        # self.page.overlay.append(pick_files_dialog)
+        # self.page.update()
+        # pick_files_dialog.get_directory_path()
 
     def _show_new_project_name_dialog(self):
 
         def validate_project_name(e):
-            project_name = project_name_field.value.strip()
+            project_name = project_name_field.value
             if project_name:
                 # Убираем недопустимые символы для имени папки
                 invalid_chars = '<>:"/\\|?*'
@@ -98,7 +106,6 @@ class WoodWastePage(BasePage):
                     project_name = project_name.replace(char, '_')
 
                 # Убираем множественные пробелы и подчеркивания
-                project_name = ' '.join(project_name.split())
                 project_name = '_'.join(filter(None, project_name.split('_')))
 
                 project_name_field.value = project_name
@@ -114,6 +121,7 @@ class WoodWastePage(BasePage):
 
         def on_submit(e):
             project_name = project_name_field.value.strip()
+            project_name = ' '.join(project_name.split())
             if project_name:
                 self.page.close(project_name_dialog)
                 # После ввода имени проекта открываем диалог выбора папки
@@ -252,13 +260,12 @@ class WoodWastePage(BasePage):
             ft.Row([
                 ft.Text("Расчет отходов древесины", size=24, weight=ft.FontWeight.BOLD),
                 ft.Row([self.create_project_button, self.open_project_button]),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, wrap=True),
             self.project_field,
-            ft.Divider(height=20),
+            # ft.Divider(height=20),
 
-            ft.Text("Параметры обработки", size=18, weight=ft.FontWeight.BOLD),
-            self.parameters_container,
-            ft.Divider(height=20),
+            self.parameters_tile,
+            # ft.Divider(height=20),
 
             self.containers
         ])
