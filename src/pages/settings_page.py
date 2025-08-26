@@ -56,7 +56,7 @@ class SettingsPage(BasePage):
         paths_file_server_text_field = ft.TextField(label="Файловый сервер", value=self.app.settings.paths.file_server,
                                                     expand=True)
         paths_file_server_text_field.on_submit = lambda _: self._save_parameter('file_server', paths_file_server_text_field.value)
-        paths_file_server_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_color=ft.Colors.BLUE, icon_size=24,
+        paths_file_server_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24,
                                                  tooltip="Выбрать путь",
                                                  on_click=lambda e: self._select_dir_action(paths_file_server_text_field, 'file_server'))
         # Выбор папки проектов
@@ -64,7 +64,7 @@ class SettingsPage(BasePage):
                                                         value=self.app.settings.paths.projects_folder,
                                                         expand=True)
         paths_projects_folder_text_field.on_submit = lambda _: self._save_parameter('projects_folder', paths_file_server_text_field.value)
-        paths_projects_folder_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_color=ft.Colors.BLUE, icon_size=24,
+        paths_projects_folder_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24,
                                                      tooltip="Выбрать путь",
                                                      on_click=lambda e: self._select_dir_action(paths_projects_folder_text_field, 'projects_folder'))
         return ft.Column([
@@ -72,7 +72,7 @@ class SettingsPage(BasePage):
             ft.Divider(height=20),
             
             ft.Text("О программе", size=18, weight=ft.FontWeight.BOLD),
-            ft.Text("GeoOffice v0.0.0"),  # TODO: разобраться с версионированием
+            ft.Text(f"GeoOffice\nВерсия {self.app.version}"),
             ft.Text("Ведение документации по объектам и геодезические расчеты"),
             ft.Text(f"Автор: Мысливец Максим"),
             ft.Divider(height=20),

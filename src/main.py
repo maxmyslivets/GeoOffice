@@ -32,6 +32,7 @@ def flet_log():
 
 
 class GeoOfficeApp:
+    version = "0.1.0"
     @log_exception
     def __init__(self):
         logger.info("Инициализация приложения GeoOffice")
