@@ -7,13 +7,10 @@ class Interface:
     """
     Модель настроек интерфейса.
     :param theme: Тема приложения (light, dark, system)
-    :param last_page: Последняя страница приложения
     :param width: Ширина окна
     :param height: Высота окна
     """
-    theme: Literal['light', 'dark', 'system']
-    is_last_page: bool
-    last_page: str
+    dark_mode: bool
     width: int
     height: int
     left: int
@@ -81,9 +78,7 @@ class Settings:
         file_server = r'\\server-r\igi'
 
         self.interface = Interface(
-            theme='light',
-            last_page='HomePage',
-            is_last_page=True,
+            dark_mode=False,
             width=800,
             height=1000,
             left=10,

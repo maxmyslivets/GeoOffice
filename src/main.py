@@ -3,6 +3,7 @@ import traceback
 from pathlib import Path
 
 import flet as ft
+from flet.core.theme import Theme
 
 from pages.dashboard_page import DashboardPage
 from pages.projects_page import ProjectsPage
@@ -86,7 +87,7 @@ class GeoOfficeApp:
         logger.info("Инициализация пользовательского интерфейса")
         self.page = page
         page.title = "GeoOffice"
-        page.theme_mode = self.settings.interface.theme
+        page.theme_mode = "dark" if self.settings.interface.dark_mode else "light"
         page.window.width = self.settings.interface.width
         page.window.height = self.settings.interface.height
         page.window.min_width = 800

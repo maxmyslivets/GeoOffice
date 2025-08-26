@@ -21,9 +21,8 @@ class BannerDiffProjects:
 
     def create(self, text: str, actions: dict[str, Any]) -> ft.Banner:
         self.banner = ft.Banner(
-            bgcolor=ft.Colors.AMBER_100,
-            leading=ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color=ft.Colors.AMBER, size=40),
-            content=ft.Text(value=text, color=ft.Colors.BLACK),
+            leading=ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=40),
+            content=ft.Text(value=text),
             actions=[
                 ft.TextButton(text=t, on_click=a)
                 for t, a in actions.items()

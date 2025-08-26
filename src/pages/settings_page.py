@@ -33,23 +33,25 @@ class SettingsPage(BasePage):
                 self.app.settings.paths.projects_folder = value
         self.app.save_settings()
         self.page.update()
-    
+
     def get_content(self):
         """
         Возвращает содержимое страницы настроек (UI).
         :return: Flet Column с элементами интерфейса
         """
-        # Настройки интерфейса
-        interface_is_last_page_switch = ft.Switch(
-            label='Запоминать последнюю открытую страницу',
-            value=True,
-            # on_change=self._select_dir_action,  # TODO
-        )
-        interface_is_position_and_size_switch = ft.Switch(
-            label='Запоминать положение и размер окна',
-            value=True,
-            # on_change=self._select_dir_action,  # TODO
-        )
+        # Настройка интерфейса
+        def dark_mode_change(e):
+            if dark_mode_switch.value:
+                self.app.settings.interface.dark_mode = True
+                self.app.page.theme_mode = "dark"
+            else:
+                self.app.settings.interface.dark_mode = False
+                self.app.page.theme_mode = "light"
+            self.app.save_settings()
+            self.app.page.update()
+        dark_mode_switch = ft.Switch(label="Темная тема", value=self.app.settings.interface.dark_mode,
+                                     on_change=dark_mode_change)
+
         # Выбор файлового сервера
         paths_file_server_text_field = ft.TextField(label="Файловый сервер", value=self.app.settings.paths.file_server,
                                                     expand=True)
@@ -77,8 +79,7 @@ class SettingsPage(BasePage):
             
             ft.Column([
                 ft.Text("Настройки интерфейса", size=18, weight=ft.FontWeight.BOLD),
-                interface_is_last_page_switch,
-                interface_is_position_and_size_switch,
+                dark_mode_switch
             ]),
 
             ft.Column([
