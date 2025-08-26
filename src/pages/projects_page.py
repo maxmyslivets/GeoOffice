@@ -27,7 +27,6 @@ class ProjectsPage(BasePage):
         self.loading_indicator = None
         self.search_field = None
         self.project_service = ProjectService(self.app.database_service)
-
     def get_content(self):
         """
         Формирует и возвращает содержимое главной страницы (UI-компоненты Flet).
@@ -56,10 +55,18 @@ class ProjectsPage(BasePage):
         return ft.Column([
             ft.Row([
                 ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
-                ft.ElevatedButton(
-                    text="Проверить базу данных",
-                    on_click=lambda e: self.start_diff_project(),
-                )
+                ft.Row([
+                    ft.ElevatedButton(
+                        icon=ft.Icons.SYNC,
+                        text="Проверить базу данных",
+                        on_click=lambda e: self.start_diff_project(),
+                    ),
+                    ft.ElevatedButton(
+                        icon=ft.Icons.ADD,
+                        text="Добавить объект",
+                        on_click=lambda e: self.start_diff_project(),
+                    ),
+                ], alignment=ft.MainAxisAlignment.END),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Row([
                 self.search_field,
@@ -209,7 +216,7 @@ class ProjectsPage(BasePage):
                             items=[
                                 ft.PopupMenuItem(
                                     icon=ft.Icons.ADD,
-                                    text="Добавить новый",
+                                    text="Добавить в базу данных",
                                     on_click=lambda e, t=text: self.app.show_warning("Функция в разработке")
                                 ),
                                 ft.PopupMenuItem(
@@ -221,7 +228,7 @@ class ProjectsPage(BasePage):
                         )
                     )
                     for text in only_in_files
-                ]),
+                ] if len(only_in_files) > 0 else [ft.ListTile(title=ft.Text("..."))]),
                 ft.Column([
                     ft.Text("Нет в файловой системе", size=20, weight=ft.FontWeight.BOLD),
                     ft.Text("Если объект есть в базе данных, но в файловой системе путь к нему изменился, необходимо "
@@ -243,14 +250,14 @@ class ProjectsPage(BasePage):
                                 ),
                                 ft.PopupMenuItem(
                                     icon=ft.Icons.DELETE,
-                                    text="Удалить существующий",
+                                    text="Удалить из базы данных",
                                     on_click=lambda e, t=text: delete_exist(t)
                                 ),
                             ]
                         )
                     )
                     for text in only_in_database
-                ]),
+                ] if len(only_in_database) > 0 else [ft.ListTile(title=ft.Text("..."))]),
             ], scroll=ft.ScrollMode.AUTO, expand=True),
         )
         dlg = ft.AlertDialog(content=content,)

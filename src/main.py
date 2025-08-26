@@ -3,7 +3,6 @@ import traceback
 from pathlib import Path
 
 import flet as ft
-from flet.core.theme import Theme
 
 from pages.dashboard_page import DashboardPage
 from pages.projects_page import ProjectsPage
@@ -12,6 +11,7 @@ from pages.tools_page import ToolsPage
 from pages.settings_page import SettingsPage
 
 from components.menu import Menu
+from components.status_bar import StatusBar
 
 from models.settings_model import Settings
 
@@ -45,6 +45,7 @@ class GeoOfficeApp:
         self.menu = None
         # Контейнер для основного содержимого
         self.content = None
+        self.status_bar = StatusBar(self)
 
         self.background_service = BackgroundService()
 
@@ -121,7 +122,9 @@ class GeoOfficeApp:
 
         # Добавляем основной интерфейс на страницу
         page.add(main_layout)
+        page.add(self.status_bar.content)
         page.update()
+        # self.status_bar.add_task("diff_projects") # FIXME
 
         # Показ начальной страницы
         self.show_page(DashboardPage)

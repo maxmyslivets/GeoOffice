@@ -61,7 +61,7 @@ class ProjectPage(BasePage):
     def create_header(self):
         """Создание заголовка страницы"""
         return ft.Row([
-            ft.Icon(ft.Icons.FOLDER, color=ft.Colors.BLUE, size=32),
+            # ft.Icon(ft.Icons.FOLDER, color=ft.Colors.BLUE, size=32),
             ft.Column([
                 ft.Text(f"{self.project.number} {self.project.name}", size=28, weight=ft.FontWeight.BOLD,
                         max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
