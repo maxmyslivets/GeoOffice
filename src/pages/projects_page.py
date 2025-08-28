@@ -106,6 +106,7 @@ class ProjectsPage(BasePage):
             self.app.show_error("База данных не подключена")
             return
         if empty_search:
+            #TODO: реализовать пагинацию в таблице https://youtu.be/C_rjLLK8E8c?si=p93lxYfPau9luKGk
             results = self.project_service.search_projects(self.search_query, return_all=True, limit=50)
         else:
             results = self.project_service.search_projects(self.search_query)

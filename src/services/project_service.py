@@ -19,9 +19,9 @@ class ProjectService:
     Обеспечивает загрузку, сохранение, поиск и управление данными проектов.
     """
     
-    def __init__(self, database_project_service: DatabaseService):
+    def __init__(self, database_service: DatabaseService):
         """Инициализация сервиса проектов"""
-        self.database_service = database_project_service
+        self.database_service = database_service
         logger.info(f"Инициализирован сервис проектов.")
 
     @log_exception
@@ -45,7 +45,8 @@ class ProjectService:
         :param limit: Максимальное количество результатов
         :return: Список кортежей (id, номер, название, заказчик)
         """
-        #FIXME: При появлении пробела в запросе, сервис не выдает результаты
+        #TODO: поиск при пустой строке запроса, убрать аргументы return_all и limit
+        #TODO: перенести метод в database_service 
 
         projects_data: List[Project] = self.database_service.get_all_projects()
 
@@ -143,7 +144,7 @@ class ProjectService:
         completed_projects = 257
         archived_projects = 262
         promising_projects = 23
-        
+
         return {
             "total_projects": total_projects,
             "active_projects": active_projects,

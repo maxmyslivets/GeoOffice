@@ -88,3 +88,19 @@ class DatabaseService:
     def get_all_projects(self) -> list[Any]:
         logger.debug(f"Получение всех проектов")
         return self.models.Project.select()[:]
+
+    @log_exception
+    @db_session
+    def search_project(self, query: str):
+        """
+        Поиск проектов по названию.
+        :param query: Поисковой запрос
+        :return: Список кортежей
+        """
+        query = query.lower()
+        # result = self.models.Project.select(lambda p: query in p.name)[:]
+        # return [(p.id, p.number, p.name, p.customer) for p in result_projects]
+        result = select(
+            (p.id, p.number, p.name, p.customer) for p in self.models.Project
+            if query in " ".join(p.number, p.name, p.customer)
+        )
