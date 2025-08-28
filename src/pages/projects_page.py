@@ -27,6 +27,7 @@ class ProjectsPage(BasePage):
         self.loading_indicator = None
         self.search_field = None
         self.project_service = ProjectService(self.app.database_service)
+
     def get_content(self):
         """
         Формирует и возвращает содержимое главной страницы (UI-компоненты Flet).
@@ -51,7 +52,6 @@ class ProjectsPage(BasePage):
         self.results_container = ft.Container(
             content=ft.Text("Результаты поиска появятся здесь..."),
         )
-        self.project_search(empty_search=True)
         return ft.Column([
             ft.Row([
                 ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
@@ -76,6 +76,11 @@ class ProjectsPage(BasePage):
         ])
 
     @log_exception
+    def post_show(self):
+        self.project_search(empty_search=True)
+        self.page.update()
+
+    @log_exception
     def on_query_change(self, e):
         """
         Обработчик изменения строки поиска.
@@ -83,7 +88,6 @@ class ProjectsPage(BasePage):
         self.search_query = e.control.value
         if self.search_query:
             self.results_container.content = ft.Text("Поиск...", color=ft.Colors.GREY_500)
-            self.loading_indicator.visible = True
             self.page.update()
             self.project_search()
         else:
@@ -94,6 +98,8 @@ class ProjectsPage(BasePage):
         """
         Запускает поиск по объектам и обновляет UI с результатами.
         """
+        self.loading_indicator.visible = True
+        self.page.update()
         if not self.app.database_service.connected:
             self.loading_indicator.visible = False
             self.page.update()

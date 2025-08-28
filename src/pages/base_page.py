@@ -1,5 +1,6 @@
 import flet as ft
 from abc import ABC, abstractmethod
+
 from utils.logger_config import get_logger, log_exception
 
 
@@ -22,7 +23,7 @@ class BasePage(ABC):
         # Получаем логгер для конкретной страницы
         self.logger = get_logger(f"pages.{self.__class__.__name__.lower()}")
         self.logger.debug(f"Инициализация страницы {self.__class__.__name__}")
-    
+
     @abstractmethod
     def get_content(self):
         """
@@ -30,7 +31,12 @@ class BasePage(ABC):
         :return: Flet UI-элемент
         """
         pass
-    
+
+    @log_exception
+    def post_show(self):
+        """Метод для запуска задач после отображения страницы."""
+        pass
+
     @log_exception
     def get_scrollable_content(self):
         """

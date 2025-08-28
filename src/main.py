@@ -56,7 +56,6 @@ class GeoOfficeApp:
         # Инициализация базы данных
         self.database_service = DatabaseService(
             Path(self.settings.paths.file_server) / self.settings.paths.database_path)
-        self.connect_database()
 
         logger.info("Приложение инициализировано")
 
@@ -133,6 +132,8 @@ class GeoOfficeApp:
 
         logger.info("Пользовательский интерфейс инициализирован")
 
+        self.connect_database()
+
     @log_exception
     def create_menu(self):
         """Создание боковой навигации с категориями"""
@@ -169,8 +170,10 @@ class GeoOfficeApp:
         """Показать страницу"""
         logger.debug(f"Отображение страницы: {page}")
         try:
-            self.content.content = page(self).get_scrollable_content()
+            page = page(self)
+            self.content.content = page.get_scrollable_content()
             self.page.update()
+            page.post_show()
         except Exception as e:
             logger.error(e)
 
@@ -242,6 +245,7 @@ class GeoOfficeApp:
             self.database_service.connection()
         except Exception as e:
             logger.error(f"Ошибка подключения к базе данных\n{e}")
+            self.show_error("Ошибка подключения к базе данных")
 
 
 @log_exception
