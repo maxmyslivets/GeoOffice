@@ -21,9 +21,18 @@ class ProjectsPage(BasePage):
         self.page = None
         self.search_query = ""
         self.results_container = None
+        self.results_list = None
         self.loading_indicator = None
         self.search_field = None
         self.project_service = ProjectService(self.app.database_service)
+
+        # Пагинация/ленивая загрузка
+        self._all_results: list[tuple] = []  # (project_id, number, name, customer)
+        self._loaded_count: int = 0
+        self._page_size: int = 100
+        self._max_controls: int = 600  # ограничение числа одновременно отрисованных элементов
+        self._is_loading_page: bool = False
+        self._current_search_id: int = 0
 
     def get_content(self):
         """
@@ -46,9 +55,17 @@ class ProjectsPage(BasePage):
             expand=True
         )
         self.loading_indicator = ft.ProgressRing(visible=False, width=30, height=30)
-        self.results_container = ft.Container(
-            content=ft.Text("Результаты поиска появятся здесь..."),
+
+        # Контейнер результатов теперь ListView с прокруткой
+        self.results_list = ft.ListView(
+            expand=True,
+            spacing=0,
+            padding=0,
+            auto_scroll=False,
+            on_scroll=self._on_results_scroll,
         )
+        self.results_container = ft.Container(content=self.results_list, expand=True)
+
         return ft.Column([
             ft.Row([
                 ft.Text("Поиск по объектам", size=20, weight=ft.FontWeight.BOLD),
@@ -70,7 +87,7 @@ class ProjectsPage(BasePage):
                 self.loading_indicator
             ], spacing=10, expand=True),
             self.results_container,
-        ])
+        ], expand=True)
 
     @log_exception
     def post_show(self):
@@ -80,19 +97,93 @@ class ProjectsPage(BasePage):
     @log_exception
     def on_query_change(self, e):
         """
-        Обработчик изменения строки поиска.
+        Обработчик изменения строкипоиска.
         """
         self.search_query = e.control.value
         self.results_container.content = ft.Text("Поиск...", color=ft.Colors.GREY_500)
         self.page.update()
+        # Увеличиваем идентификатор поиска и запускаем новый
+        self._current_search_id += 1
         self.project_search()
+
+    @log_exception
+    def _render_items(self, items: list[tuple]) -> list[ft.Control]:
+        controls: list[ft.Control] = []
+        query_text = self.search_query.strip()
+        highlight_re = re.compile(re.escape(query_text), re.IGNORECASE) if query_text else None
+        for project_id, number, name, customer in items:
+            text = f"{number} {name}"
+            icon = ft.Icons.DESCRIPTION
+            display_name = []
+            if highlight_re:
+                last = 0
+                for m in highlight_re.finditer(text):
+                    if m.start() > last:
+                        display_name.append(ft.Text(text[last:m.start()]))
+                    display_name.append(
+                        ft.Text(text[m.start():m.end()], weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
+                    last = m.end()
+                if last < len(text):
+                    display_name.append(ft.Text(text[last:]))
+                if not display_name:
+                    display_name = [ft.Text(text)]
+            else:
+                display_name = [ft.Text(text)]
+
+            controls.append(
+                ft.ListTile(
+                    leading=ft.Icon(icon, color=ft.Colors.GREY_700),
+                    title=ft.Row(display_name, spacing=0),
+                    subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
+                    on_click=lambda e, pid=project_id: self.app.show_project_page(pid),
+                    dense=True,
+                )
+            )
+        return controls
+
+    @log_exception
+    def _reset_results(self):
+        self._all_results = []
+        self._loaded_count = 0
+        if isinstance(self.results_container.content, ft.ListView):
+            self.results_container.content.controls.clear()
+        else:
+            self.results_container.content = self.results_list
+        self.page.update()
+
+    @log_exception
+    def _load_next_page(self):
+        if self._loaded_count >= len(self._all_results):
+            return
+        if self._is_loading_page:
+            return
+        self._is_loading_page = True
+        end = min(self._loaded_count + self._page_size, len(self._all_results))
+        batch = self._all_results[self._loaded_count:end]
+        new_controls = self._render_items(batch)
+        self.results_list.controls.extend(new_controls)
+        self._loaded_count = end
+
+        # Ограничиваем число отрисованных элементов
+        if len(self.results_list.controls) > self._max_controls:
+            trim = len(self.results_list.controls) - self._max_controls
+            del self.results_list.controls[:trim]
+        self._is_loading_page = False
+        self.page.update()
+
+    @log_exception
+    def _on_results_scroll(self, e: ft.OnScrollEvent):
+        # Если докрутили до низа — догружаем следующую порцию (с защитой от повторных вызовов)
+        if e.pixels is not None and e.max_scroll_extent is not None:
+            near_bottom = (e.max_scroll_extent - e.pixels) < 200
+            if near_bottom and not self._is_loading_page:
+                self._load_next_page()
 
     @log_exception
     def project_search(self):
         """
         Запускает поиск по объектам и обновляет UI с результатами.
         """
-        # TODO: реализовать пагинацию в таблице https://youtu.be/C_rjLLK8E8c?si=p93lxYfPau9luKGk
         self.loading_indicator.visible = True
         self.page.update()
 
@@ -101,59 +192,49 @@ class ProjectsPage(BasePage):
         if not self.app.database_service.connected:
             self.results_container.content = empty_result_text
             self.app.show_error("База данных не подключена")
-
+            self.loading_indicator.visible = False
+            self.page.update()
         else:
+            # Останавливаем предыдущую задачу поиска, если она ещё выполняется
+            if "project_search" in self.app.background_service.get_tasks().keys():
+                self.app.background_service.stop_task("project_search")
+
+            # Снимок текущего идентификатора поиска
+            search_id = self._current_search_id
+
+            # Очистим предыдущие результаты сразу, чтобы не мелькали старые
+            self._reset_results()
 
             def task(progress, stop_event):
                 return self.app.database_service.search_project(self.search_query)
 
             def on_complete(results: list):
+                # Игнорируем устаревший результат
+                if search_id != self._current_search_id:
+                    return
+                self._reset_results()
                 if len(results) > 0:
-                    items = []
-                    query_text = self.search_query.strip()
-                    highlight_re = re.compile(re.escape(query_text), re.IGNORECASE)
-                    for project_id, number, name, customer in results:
-                        text = f"{number} {name}"
-                        icon = ft.Icons.DESCRIPTION
-                        display_name = []
-                        last = 0
-                        for m in highlight_re.finditer(text):
-                            if m.start() > last:
-                                display_name.append(ft.Text(text[last:m.start()]))
-                            display_name.append(
-                                ft.Text(text[m.start():m.end()], weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
-                            last = m.end()
-                        if last < len(text):
-                            display_name.append(ft.Text(text[last:]))
-                        if not display_name:
-                            display_name = [ft.Text(text)]
-                        items.append(
-                            ft.ListTile(
-                                leading=ft.Icon(icon, color=ft.Colors.GREY_700),
-                                title=ft.Row(display_name, spacing=0),
-                                subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
-                                on_click=lambda e, pid=project_id: self.app.show_project_page(pid),
-                                dense=True,
-                            )
-                        )
-                    self.results_container.content = ft.Column(
-                        items,
-                        scroll=ft.ScrollMode.AUTO,
-                        # height=400,
-                    )
+                    self._all_results = results
+                    # Рендерим первую страницу
+                    self._load_next_page()
+                    self.results_container.content = self.results_list
                 else:
                     self.results_container.content = empty_result_text
                 self.loading_indicator.visible = False
                 self.page.update()
 
             def on_cancel():
+                # Игнорируем устаревшую отмену
+                if search_id != self._current_search_id:
+                    return
                 self.results_container.content = empty_result_text
                 self.loading_indicator.visible = False
                 self.page.update()
                 self.app.show_warning("Проверка прервана пользователем")
 
+            # Используем диалог без прогресса для переноса вычислений в поток
             self.app.background_dialog_runner.run(
-                task_name="Поиск проектов",
+                task_name="project_search",
                 task_func=task,
                 show_progress=False,
                 on_cancel=on_cancel,
