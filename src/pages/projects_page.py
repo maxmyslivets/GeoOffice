@@ -161,38 +161,7 @@ class ProjectsPage(BasePage):
             )
 
     @log_exception
-    def diff_projects(self):
-        """
-        Запускает процесс сравнения проектов в файловой системе и проектов из базы данных.
-        """
-        if not self.app.database_service.connected:
-            self.app.show_error("База данных не подключена")
-            return
-        diff = self.project_service.diff_projects(
-            Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
-        count_only_in_files = len(diff["only_in_files"])
-        count_only_in_database = len(diff["only_in_database"])
-        text = "Требуется обновление базы данных."
-        if (count_only_in_files + count_only_in_database) > 0:
-            if count_only_in_files > 0:
-                text += f"\nНет в базе данных: {count_only_in_files}"
-            if count_only_in_database > 0:
-                text += f"\nНет в файловой системе: {count_only_in_database}"
-            banner = BannerDiffProjects(self.app)
-            banner.create(text,
-                          {
-                              "Обновить": lambda e: (
-                                  banner.close_banner(e),
-                                  self.show_diff_projects(diff["only_in_files"], diff["only_in_database"])
-                              ),
-                              "Отмена": banner.close_banner
-                          })
-            banner.show()
-        else:
-            self.app.show_info("База данных актуальна")
-
-    @log_exception
-    def show_diff_projects(self, only_in_files, only_in_database):
+    def show_diff_projects_result(self, only_in_files, only_in_database):
 
         def find_exist(text):
             self.page.close(dlg)
@@ -309,7 +278,7 @@ class ProjectsPage(BasePage):
                               {
                                   "Обновить": lambda e: (
                                       banner.close_banner(e),
-                                      self.show_diff_projects(diff["only_in_files"], diff["only_in_database"])
+                                      self.show_diff_projects_result(diff["only_in_files"], diff["only_in_database"])
                                   ),
                                   "Отмена": banner.close_banner
                               })
