@@ -1,5 +1,4 @@
 import re
-import sys
 from pathlib import Path
 
 import flet as ft
@@ -8,8 +7,6 @@ from .base_page import BasePage
 from components.banners import BannerDiffProjects
 from services.project_service import ProjectService
 from utils.logger_config import log_exception
-
-sys.path.append("..")
 
 
 class ProjectsPage(BasePage):
@@ -77,7 +74,7 @@ class ProjectsPage(BasePage):
 
     @log_exception
     def post_show(self):
-        self.project_search(empty_search=True)
+        self.project_search()
         self.page.update()
 
     @log_exception
@@ -86,68 +83,82 @@ class ProjectsPage(BasePage):
         Обработчик изменения строки поиска.
         """
         self.search_query = e.control.value
-        if self.search_query:
-            self.results_container.content = ft.Text("Поиск...", color=ft.Colors.GREY_500)
-            self.page.update()
-            self.project_search()
-        else:
-            self.project_search(empty_search=True)
+        self.results_container.content = ft.Text("Поиск...", color=ft.Colors.GREY_500)
+        self.page.update()
+        self.project_search()
 
     @log_exception
-    def project_search(self, empty_search=False):
+    def project_search(self):
         """
         Запускает поиск по объектам и обновляет UI с результатами.
         """
+        # TODO: реализовать пагинацию в таблице https://youtu.be/C_rjLLK8E8c?si=p93lxYfPau9luKGk
         self.loading_indicator.visible = True
         self.page.update()
-        if not self.app.database_service.connected:
-            self.loading_indicator.visible = False
-            self.page.update()
-            self.app.show_error("База данных не подключена")
-            return
-        if empty_search:
-            #TODO: реализовать пагинацию в таблице https://youtu.be/C_rjLLK8E8c?si=p93lxYfPau9luKGk
-            results = self.project_service.search_projects(self.search_query, return_all=True, limit=50)
-        else:
-            results = self.project_service.search_projects(self.search_query)
-        items = []
-        query_text = self.search_query.strip()
-        highlight_re = re.compile(re.escape(query_text), re.IGNORECASE)
-        for project_id, number, name, customer in results:
-            text = f"{number} {name}"
-            icon = ft.Icons.DESCRIPTION
-            display_name = []
-            last = 0
-            for m in highlight_re.finditer(text):
-                if m.start() > last:
-                    display_name.append(ft.Text(text[last:m.start()]))
-                display_name.append(ft.Text(text[m.start():m.end()], weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
-                last = m.end()
-            if last < len(text):
-                display_name.append(ft.Text(text[last:]))
-            if not display_name:
-                display_name = [ft.Text(text)]
-            items.append(
-                ft.ListTile(
-                    leading=ft.Icon(icon, color=ft.Colors.GREY_700),
-                    title=ft.Row(display_name, spacing=0),
-                    subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
-                    on_click=lambda e, pid=project_id: self.app.show_project_page(pid),
-                    dense=True,
-                    # bgcolor=ft.Colors.BLUE_50
-                )
-            )
-        if not items:
-            self.results_container.content = ft.Text("Ничего не найдено", color=ft.Colors.GREY_500)
-        else:
-            self.results_container.content = ft.Column(
-                items,
-                scroll=ft.ScrollMode.AUTO,
-                # height=400,
-            )
 
-        self.loading_indicator.visible = False
-        self.page.update()
+        empty_result_text = ft.Text("Ничего не найдено")
+
+        if not self.app.database_service.connected:
+            self.results_container.content = empty_result_text
+            self.app.show_error("База данных не подключена")
+
+        else:
+
+            def task(progress, stop_event):
+                return self.app.database_service.search_project(self.search_query)
+
+            def on_complete(results: list):
+                if len(results) > 0:
+                    items = []
+                    query_text = self.search_query.strip()
+                    highlight_re = re.compile(re.escape(query_text), re.IGNORECASE)
+                    for project_id, number, name, customer in results:
+                        text = f"{number} {name}"
+                        icon = ft.Icons.DESCRIPTION
+                        display_name = []
+                        last = 0
+                        for m in highlight_re.finditer(text):
+                            if m.start() > last:
+                                display_name.append(ft.Text(text[last:m.start()]))
+                            display_name.append(
+                                ft.Text(text[m.start():m.end()], weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
+                            last = m.end()
+                        if last < len(text):
+                            display_name.append(ft.Text(text[last:]))
+                        if not display_name:
+                            display_name = [ft.Text(text)]
+                        items.append(
+                            ft.ListTile(
+                                leading=ft.Icon(icon, color=ft.Colors.GREY_700),
+                                title=ft.Row(display_name, spacing=0),
+                                subtitle=ft.Text(customer, size=11, color=ft.Colors.GREY_500),
+                                on_click=lambda e, pid=project_id: self.app.show_project_page(pid),
+                                dense=True,
+                            )
+                        )
+                    self.results_container.content = ft.Column(
+                        items,
+                        scroll=ft.ScrollMode.AUTO,
+                        # height=400,
+                    )
+                else:
+                    self.results_container.content = empty_result_text
+                self.loading_indicator.visible = False
+                self.page.update()
+
+            def on_cancel():
+                self.results_container.content = empty_result_text
+                self.loading_indicator.visible = False
+                self.page.update()
+                self.app.show_warning("Проверка прервана пользователем")
+
+            self.app.background_dialog_runner.run(
+                task_name="Поиск проектов",
+                task_func=task,
+                show_progress=False,
+                on_cancel=on_cancel,
+                on_complete=on_complete,
+            )
 
     @log_exception
     def diff_projects(self):
@@ -272,13 +283,44 @@ class ProjectsPage(BasePage):
 
     @log_exception
     def start_diff_project(self):
-        """Запуск периодической проверки проектов через BackgroundService"""
+        """Запуск сравнения проектов с отображением прогресса и возможностью отмены"""
         # Останавливаем предыдущую задачу, если она существует
         if "diff_projects" in self.app.background_service.get_tasks().keys():
             self.app.background_service.stop_task("diff_projects")
 
-        # Запускаем новую задачу
-        self.app.background_service.start_task(
-            task_name="diff_projects",
-            task_func=self.diff_projects
+        projects_root = Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder
+
+        def task(progress, stop_event):
+            return self.project_service.diff_projects_with_progress(projects_root, progress, stop_event)
+
+        def on_complete(diff: dict):
+            if diff is None:
+                return
+            count_only_in_files = len(diff.get("only_in_files", []))
+            count_only_in_database = len(diff.get("only_in_database", []))
+            text = "Требуется обновление базы данных."
+            if (count_only_in_files + count_only_in_database) > 0:
+                if count_only_in_files > 0:
+                    text += f"\nНет в базе данных: {count_only_in_files}"
+                if count_only_in_database > 0:
+                    text += f"\nНет в файловой системе: {count_only_in_database}"
+                banner = BannerDiffProjects(self.app)
+                banner.create(text,
+                              {
+                                  "Обновить": lambda e: (
+                                      banner.close_banner(e),
+                                      self.show_diff_projects(diff["only_in_files"], diff["only_in_database"])
+                                  ),
+                                  "Отмена": banner.close_banner
+                              })
+                banner.show()
+            else:
+                self.app.show_info("База данных актуальна")
+
+        self.app.background_dialog_runner.run(
+            task_name="Проверка различий проектов",
+            task_func=task,
+            show_progress=True,
+            on_cancel=lambda: self.app.show_warning("Проверка прервана пользователем"),
+            on_complete=on_complete,
         )

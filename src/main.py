@@ -7,7 +7,6 @@ import flet as ft
 from pages.dashboard_page import DashboardPage
 from pages.projects_page import ProjectsPage
 from pages.project_page import ProjectPage
-from pages.tools_page import ToolsPage
 from pages.settings_page import SettingsPage
 
 from components.menu import Menu
@@ -17,6 +16,7 @@ from models.settings_model import Settings
 
 from services.background_service import BackgroundService
 from services.database_service import DatabaseService
+from components.background_dialog_runner import BackgroundDialogRunner
 
 from utils.logger_config import setup_logging, get_logger, log_exception
 from utils.file_utils import FileUtils
@@ -47,7 +47,9 @@ class GeoOfficeApp:
         self.content = None
         self.status_bar = StatusBar(self)
 
-        self.background_service = BackgroundService()
+        self.background_service = BackgroundService(self)
+        # Новый раннер диалогов прогресса
+        self.background_dialog_runner = BackgroundDialogRunner(self)
 
         # Инициализация настроек
         self.settings = Settings(data=None)
@@ -97,6 +99,8 @@ class GeoOfficeApp:
         page.window.top = self.settings.interface.top
         page.padding = 20
 
+        page.window.prevent_close = False
+
         # Установка обработчика события для окна
         def window_event_handler(e: ft.WindowEvent):
             self.settings.interface.width = int(self.page.window.width)
@@ -104,6 +108,10 @@ class GeoOfficeApp:
             self.settings.interface.left = int(self.page.window.left)
             self.settings.interface.top = int(self.page.window.top)
             self.save_settings()
+            if e.data == "close":
+                # TODO: реализовать логику при page.window.prevent_close = True
+                print("CLOSE")
+                page.window.destroy()
         self.page.window.on_event = window_event_handler
 
         # Создание навигации
@@ -123,7 +131,6 @@ class GeoOfficeApp:
         page.add(main_layout)
         page.add(self.status_bar.content)
         page.update()
-        # self.status_bar.add_task("diff_projects") # FIXME
 
         # Показ начальной страницы
         self.show_page(DashboardPage)

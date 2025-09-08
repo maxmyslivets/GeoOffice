@@ -1,6 +1,8 @@
 import threading
 import time
 from typing import Dict, Callable, Any
+import flet as ft
+
 from utils.logger_config import get_logger, log_exception
 
 logger = get_logger("services.background_service")
@@ -12,8 +14,9 @@ class BackgroundService:
     Предотвращает утечки памяти путем централизованного управления потоками.
     """
 
-    def __init__(self):
+    def __init__(self, app):
         """Инициализация сервиса фоновых задач"""
+        self._app = app
         self._tasks: Dict[str, threading.Thread] = {}
         self._stop_events: Dict[str, threading.Event] = {}
         self._lock = threading.Lock()

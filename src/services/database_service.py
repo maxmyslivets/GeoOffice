@@ -1,6 +1,3 @@
-import os
-import subprocess
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +5,6 @@ from pony.orm import Database as PonyDatabase, select
 from pony.orm import db_session
 
 from models.database_model import Database
-from utils.file_utils import FileUtils
 from utils.logger_config import log_exception, get_logger
 
 logger = get_logger("services.database_service")
@@ -98,9 +94,9 @@ class DatabaseService:
         :return: Список кортежей
         """
         query = query.lower()
-        # result = self.models.Project.select(lambda p: query in p.name)[:]
-        # return [(p.id, p.number, p.name, p.customer) for p in result_projects]
-        result = select(
-            (p.id, p.number, p.name, p.customer) for p in self.models.Project
-            if query in " ".join(p.number, p.name, p.customer)
-        )
+        projects = self.models.Project.select()[:]
+        results = []
+        for project in projects:
+            if query in f"{project.number.lower()} {project.name.lower()} {project.customer.lower()}":
+                results.append((project.id, project.number, project.name, project.customer))
+        return results

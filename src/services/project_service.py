@@ -37,40 +37,6 @@ class ProjectService:
         return Project(**project_data)
 
     @log_exception
-    def search_projects(self, query: str, return_all: bool = False, limit: int = 50) -> list[tuple[int, str, str, str]]:
-        """
-        Поиск проектов по запросу.
-        :param query: Поисковый запрос
-        :param return_all: Вернуть все проекты
-        :param limit: Максимальное количество результатов
-        :return: Список кортежей (id, номер, название, заказчик)
-        """
-        #TODO: поиск при пустой строке запроса, убрать аргументы return_all и limit
-        #TODO: перенести метод в database_service 
-
-        projects_data: List[Project] = self.database_service.get_all_projects()
-
-        query_lower = query.lower()
-        results = []
-
-        if return_all:
-            projects_edit_datetime = [(projects_data[idx].modified_date, idx) for idx in range(len(projects_data))]
-            projects_edit_datetime.sort(key=lambda x: x[0], reverse=True)
-            for _, idx in projects_edit_datetime:
-                project = projects_data[idx]
-                results.append((project.id, project.number, project.name, project.customer))
-                if len(results) >= limit:
-                    break
-        else:
-            for project in projects_data:
-                if (query_lower in project.number.lower()
-                        or query_lower in project.name.lower()
-                        or query_lower in project.customer.lower()):
-                    results.append((project.id, project.number, project.name, project.customer))
-
-        return results
-
-    @log_exception
     def diff_projects(self, projects_dirpath: str | Path) -> dict[str, list[str]]:
         """
         Сканирование директории проектов и определение наличия проектов в базе данных.
@@ -92,6 +58,54 @@ class ProjectService:
             "only_in_files": list(projects_in_files - projects_in_database),
             "only_in_database": list(projects_in_database - projects_in_files),
             "in_files_and_database": list(projects_in_files & projects_in_database)
+        }
+
+    @log_exception
+    def diff_projects_with_progress(self, projects_dirpath: str | Path,
+                                    progress, stop_event) -> dict[str, list[str]] | None:
+        """
+        То же, что diff_projects, но с поддержкой прогресса и отмены.
+        :param projects_dirpath: Корень каталога проектов
+        :param progress: Callable(value: float [0..1], message: Optional[str])
+        :param stop_event: threading.Event для отмены
+        :return: словарь с результатами или None, если отменено
+        """
+        if not isinstance(projects_dirpath, Path):
+            projects_dirpath = Path(projects_dirpath)
+
+        progress(0.0, "Сканирование файловой системы...")
+
+        # Подсчёт общего количества файлов-маркеров для корректного прогресса
+        total = 0
+        for _ in projects_dirpath.rglob(".geo_office_project"):
+            total += 1
+        if total == 0:
+            progress(0.4, "В файловой системе ничего не найдено")
+
+        # Сканирование с обновлением прогресса
+        projects_in_files_list = []
+        seen = 0
+        for item in projects_dirpath.rglob(".geo_office_project"):
+            if stop_event is not None and stop_event.is_set():
+                return None
+            projects_in_files_list.append(item.parent.relative_to(projects_dirpath))
+            seen += 1
+            if total > 0 and (seen % 50 == 0):
+                progress(min(0.5, 0.1 + 0.4 * (seen / total)), f"Сканирование... {seen}/{total}")
+
+        progress(0.6, "Загрузка проектов из базы данных...")
+        projects_in_files = set([str(path) for path in projects_in_files_list])
+        projects_in_database = set(p.path for p in list(self.database_service.get_all_projects()))
+
+        only_in_files = list(projects_in_files - projects_in_database)
+        only_in_database = list(projects_in_database - projects_in_files)
+        in_both = list(projects_in_files & projects_in_database)
+
+        progress(1.0, "Готово")
+        return {
+            "only_in_files": only_in_files,
+            "only_in_database": only_in_database,
+            "in_files_and_database": in_both,
         }
 
     @log_exception
