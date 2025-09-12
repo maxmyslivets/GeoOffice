@@ -1,8 +1,9 @@
 from pathlib import Path
 from typing import Any
+from datetime import datetime
 
 from pony.orm import Database as PonyDatabase, select
-from pony.orm import db_session
+from pony.orm import db_session, desc
 
 from models.database_model import Database
 from utils.logger_config import log_exception, get_logger
@@ -87,14 +88,18 @@ class DatabaseService:
 
     @log_exception
     @db_session
-    def search_project(self, query: str):
+    def search_project(self, query: str, sorted_from_modified_date: bool = False) -> list[Any]:
         """
         Поиск проектов по названию.
         :param query: Поисковой запрос
+        :param sorted_from_modified_date: Сортировка по времени последнего редактирования
         :return: Список кортежей
         """
         query = query.lower()
-        projects = self.models.Project.select()[:]
+        if sorted_from_modified_date:
+            projects = self.models.Project.select().order_by(desc(self.models.Project.modified_date))[:]
+        else:
+            projects = self.models.Project.select()[:]
         results = []
         for project in projects:
             if query in f"{project.number.lower()} {project.name.lower()} {project.customer.lower()}":

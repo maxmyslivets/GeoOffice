@@ -206,7 +206,7 @@ class ProjectsPage(BasePage):
             self._reset_results()
 
             def task(progress, stop_event):
-                return self.app.database_service.search_project(self.search_query)
+                return self.app.database_service.search_project(self.search_query, sorted_from_modified_date=True)
 
             def on_complete(results: list):
                 # Игнорируем устаревший результат
