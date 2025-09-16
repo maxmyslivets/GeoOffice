@@ -8,6 +8,7 @@ authors = [
     { name = "Max Myslivets", email = "maxmyslivets.work@gmail.com" }
 ]
 dependencies = [
+  "bump2version>=1.0.1",
   "flet==0.28.3",
   "pony>=0.7.19",
   "uv>=0.8.13",

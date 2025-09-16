@@ -21,6 +21,8 @@ from components.background_dialog_runner import BackgroundDialogRunner
 from utils.logger_config import setup_logging, get_logger, log_exception
 from utils.file_utils import FileUtils
 
+from version import __version__
+
 
 # Настройка логирования
 logger = get_logger("main")
@@ -32,7 +34,7 @@ def flet_log():
 
 
 class GeoOfficeApp:
-    version = "0.1.0"
+    version = __version__
     @log_exception
     def __init__(self):
         logger.info("Инициализация приложения GeoOffice")
