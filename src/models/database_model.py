@@ -1,4 +1,5 @@
 from datetime import datetime
+from dateutil import parser as dateutil_parser
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,21 @@ class Database:
 
             def to_dict(self) -> dict:
                 """Конвертация в словарь"""
+                def datetime_format(dt: datetime | str) -> str:
+                    if isinstance(dt, datetime):
+                        dt_format = dt.isoformat()
+                    else:
+                        try:
+                            if dt.count(':') == 3:
+                                # Разделяем основную часть и миллисекунды
+                                main_part, milliseconds = dt.rsplit(':', 1)
+                                dt = datetime.strptime(main_part, '%d.%m.%Y %H:%M:%S')
+                                dt_format = dt.replace(microsecond=int(milliseconds) * 1000).isoformat()
+                            else:
+                                dt_format = datetime.strptime(dt, '%d.%m.%Y %H:%M:%S').isoformat()
+                        except Exception as e:
+                            raise Exception(f"Ошибка получения объекта из базы данных:\n{e}")
+                    return dt_format
                 return {
                     'id': self.id,
                     'number': self.number,
@@ -48,8 +64,8 @@ class Database:
                     'status': self.status,
                     'address': self.address,
                     'path': self.path,
-                    'created_date': self.created_date.isoformat(),
-                    'modified_date': self.modified_date.isoformat()
+                    'created_date': datetime_format(self.created_date),
+                    'modified_date': datetime_format(self.modified_date),
                 }
 
         class Models:
