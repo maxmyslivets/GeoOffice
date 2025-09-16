@@ -33,7 +33,7 @@ class DashboardPage(BasePage):
 
         return ft.Column([
             link_section,
-            self.create_statistics_section(),
+            # self.create_statistics_section(),
         ])
 
     @log_exception
