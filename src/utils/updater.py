@@ -34,7 +34,7 @@ class Updater:
 
     @log_exception
     def show_update_dialog(self, page: ft.Page):
-        """Показ диалога в Flet при наличии новой версии"""
+        """Показ баннера в Flet при наличии новой версии"""
         info = self.check_update()
 
         if not info.get("update_available"):
@@ -46,17 +46,16 @@ class Updater:
             close_dialog(e)
 
         def close_dialog(e):
-            dlg.open = False
+            page.close(banner)
             page.update()
 
-        dlg = ft.AlertDialog(
-            modal=True,
-            title=ft.Text(f"Доступна новая версия {info['latest_version']}"),
-            content=ft.Text("Хотите скачать обновление?"),
+        banner = ft.Banner(
+            leading=ft.Icon(ft.Icons.BROWSER_UPDATED, size=20),
+            content=ft.Text(f"Доступна новая версия {info['latest_version']}"),
             actions=[
-                ft.TextButton("Да", on_click=download),
-                ft.TextButton("Позже", on_click=close_dialog),
+                ft.TextButton("Скачать обновление", on_click=download),
+                ft.TextButton("Отложить", on_click=close_dialog),
             ],
         )
-        page.open(dlg)
+        page.open(banner)
         page.update()
