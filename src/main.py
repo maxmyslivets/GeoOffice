@@ -20,6 +20,7 @@ from components.background_dialog_runner import BackgroundDialogRunner
 
 from utils.logger_config import setup_logging, get_logger, log_exception
 from utils.file_utils import FileUtils
+from utils.updater import Updater
 
 from version import __version__
 
@@ -142,6 +143,9 @@ class GeoOfficeApp:
         logger.info("Пользовательский интерфейс инициализирован")
 
         self.connect_database()
+
+        updater = Updater(repo="maxmyslivets/GeoOffice", current_version=__version__)
+        updater.show_update_dialog(self.page)
 
     @log_exception
     def create_menu(self):
