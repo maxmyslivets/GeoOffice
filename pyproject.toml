@@ -11,6 +11,7 @@ dependencies = [
   "bump2version>=1.0.1",
   "flet==0.28.3",
   "pony>=0.7.19",
+  "requests>=2.32.5",
   "uv>=0.8.13",
 ]
 
