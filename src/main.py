@@ -4,29 +4,38 @@ from pathlib import Path
 
 import flet as ft
 
-from pages.dashboard_page import DashboardPage
-from pages.projects_page import ProjectsPage
-from pages.project_page import ProjectPage
-from pages.settings_page import SettingsPage
-
-from components.menu import Menu
-from components.status_bar import StatusBar
-
-from models.settings_model import Settings
-
-from services.background_service import BackgroundService
-from services.database_service import DatabaseService
-from components.background_dialog_runner import BackgroundDialogRunner
-
 from utils.logger_config import setup_logging, get_logger, log_exception
-from utils.file_utils import FileUtils
-from utils.updater import Updater
-
-from version import __version__
-
 
 # Настройка логирования
 logger = get_logger("main")
+
+try:
+    from pages.dashboard_page import DashboardPage
+    from pages.projects_page import ProjectsPage
+    from pages.project_page import ProjectPage
+    from pages.settings_page import SettingsPage
+
+    from components.menu import Menu
+    from components.status_bar import StatusBar
+
+    from models.settings_model import Settings
+
+    from services.background_service import BackgroundService
+    from services.database_service import DatabaseService
+    from components.background_dialog_runner import BackgroundDialogRunner
+
+    from utils.file_utils import FileUtils
+    from utils.updater import Updater
+
+    from version import __version__
+
+except Exception as e:
+    exc = traceback.format_exc()
+    logger.error(f"Ошибка импорта: {e}\n{exc}")
+    def _main(page: ft.Page):
+        page.add(ft.Text(f"Ошибка импорта: {e}\n{exc}",
+                         color="red"))
+    ft.app(target=_main)
 
 def flet_log():
     import logging
