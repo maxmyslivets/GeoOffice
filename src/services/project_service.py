@@ -120,14 +120,43 @@ class ProjectService:
         pass
 
     @log_exception
-    def update_project(self, number: str, **kwargs) -> bool:
+    def create_file_project(self, path: str|Path) -> Path:
+        """
+        Создает в указанной папке пустой файл ``.geo_office_project``.
+        :param path: Путь к существующей папке, в которой нужно создать файл.
+        :type path: str | Path
+        :return: Путь к созданному файлу ``.geo_office_project``.
+        :rtype: Path
+        :raises FileNotFoundError: Если указанная папка не существует.
+        :raises NotADirectoryError: Если указанный путь существует, но не является папкой.
+        """
+        path = Path(path)
+        if not path.is_dir():
+            raise FileNotFoundError(f"Каталог {path} не существует")
+        file_path = path / ".geo_office_project"
+        file_path.touch(exist_ok=True)
+        return file_path
+
+    @log_exception
+    def add_project(self, number: str, name: str, customer: str, chief_engineer: str, status: str,
+                    address: str, path: str | Path) -> Project:
         """
         Обновить данные проекта.
         :param number: Номер проекта
-        :param kwargs: Поля для обновления
-        :return: True если проект обновлен, False если не найден
+        :param name: Название проекта
+        :param customer: Заказчик
+        :param chief_engineer: Главный инженер
+        :param status: Статус проекта
+        :param address: Адрес объекта
+        :param path: Путь к папке проекта
+        :return: Созданный проект
         """
-        pass
+        project = self.database_service.create_project(number, name, customer, chief_engineer, status, address,
+                                                       str(path))
+        project_data = project.to_dict()
+        project_data['created_date'] = datetime.fromisoformat(project_data['created_date'])
+        project_data['modified_date'] = datetime.fromisoformat(project_data['modified_date'])
+        return Project(**project_data)
 
     @log_exception
     def delete_project(self, project_id: int) -> bool:
