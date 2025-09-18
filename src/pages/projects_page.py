@@ -244,6 +244,13 @@ class ProjectsPage(BasePage):
     @log_exception
     def show_diff_projects_result(self, only_in_files, only_in_database):
 
+        # TODO: перенести ui результата сравнения проектов в компоненты;
+        #  при нажатии на кнопку действия при необходимости раскрывать элемент списка для ввода данных,
+        #  т.к. при попытке вызова дополнительного диалога, исходный диалог закрывается;
+        #  также предусмотреть сокращение списка при решении проблемы.
+        #  Продумать возможность замены диалога на временную боковую панель для
+        #  возможности параллельного редактирования проектов и контроля списка сравнения
+
         def find_exist(text):
             self.page.close(dlg)
             self.search_field.value = Path(text).name
@@ -267,6 +274,18 @@ class ProjectsPage(BasePage):
             # self.app.project_service.delete_project(project_id)   # TODO: допилить метод `project_service.delete_project`
             self.app.show_warning("Функция в разработке")
 
+        def add_exist(text):
+            try:
+                path = Path(text)
+                folder_name = path.name
+                number, name = folder_name.split(" ")[0], " ".join(folder_name.split(" ")[1:])
+                customer = chief_engineer = status = address = "Не указано"
+                project = self.project_service.add_project(number, name, customer, chief_engineer, status, address, path)
+                self.app.show_info(f"Объект \"{project.number} {project.name}\" успешно добавлен в базу данных")
+            except Exception as e:
+                self.app.show_error(f"Ошибка при добавлении объекта: {e}")
+                raise e
+
         content = ft.Container(
             content = ft.Column([
                 ft.Column([
@@ -285,7 +304,7 @@ class ProjectsPage(BasePage):
                                 ft.PopupMenuItem(
                                     icon=ft.Icons.ADD,
                                     text="Добавить в базу данных",
-                                    on_click=lambda e, t=text: self.app.show_warning("Функция в разработке")
+                                    on_click=lambda e, t=text: add_exist(t)
                                 ),
                                 ft.PopupMenuItem(
                                     icon=ft.Icons.EDIT,
