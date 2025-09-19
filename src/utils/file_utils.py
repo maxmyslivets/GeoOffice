@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import subprocess
 import platform
 from typing import Dict, Any, Optional
@@ -194,3 +195,21 @@ class FileUtils:
             result['error'] = f"Неожиданная ошибка: {e}"
 
         return result
+
+    @staticmethod
+    def is_valid_dirname(name: str) -> bool:
+        """Проверяет допустимость имени папки (Windows/Linux)."""
+        if not name or name.strip() == "":
+            return False
+
+        # запрещённые символы (Windows)
+        if re.search(r'[<>:"/\\|?*]', name):
+            return False
+
+        # зарезервированные имена Windows
+        reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
+                    *(f"LPT{i}" for i in range(1, 10))}
+        if name.upper() in reserved:
+            return False
+
+        return True
