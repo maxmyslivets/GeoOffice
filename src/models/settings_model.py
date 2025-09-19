@@ -1,4 +1,5 @@
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Literal, Any
 
 
@@ -30,6 +31,9 @@ class Paths:
     projects_folder: str
     favorite_folders: list[list[str]]
     database_path: str
+
+    def get_projects_pathdir(self) -> Path:
+        return Path(self.file_server) / self.projects_folder
 
 
 @dataclass
