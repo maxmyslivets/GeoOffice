@@ -23,19 +23,21 @@ class Database:
             """
             _table_ = "Объекты"
             id = PrimaryKey(int, auto=True)
-            number = Required(str)  # Номер проекта
+            number = Optional(str, nullable=True)  # Номер проекта
             name = Required(str)  # Название проекта
-            customer = Required(str)  # Заказчик
-            chief_engineer = Required(str)  # Главный инженер проекта
-            status = Required(str)  # Статус проекта (active, completed, archived)
-            address = Required(str)  # Адрес объекта
-            path = Required(str)  # Путь к папке проекта
+            customer = Optional(str, nullable=True)  # Заказчик
+            chief_engineer = Optional(str, nullable=True)  # Главный инженер проекта
+            status = Optional(str, nullable=True)  # Статус проекта (active, completed, archived)
+            address = Optional(str, nullable=True)  # Адрес объекта
+            path = Required(str)    # Путь к папке проекта
+            uid = Required(str)     # Уникальный идентификатор
             created_date = Required(datetime, default=datetime.now)
             modified_date = Required(datetime, default=datetime.now)
 
             def __str__(self):
                 return f"Project(id={self.id}, number='{self.number}', name='{self.name}')"
 
+            @db_session
             def to_dict(self) -> dict:
                 """Конвертация в словарь"""
                 def datetime_format(dt: datetime | str) -> str:

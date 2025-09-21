@@ -36,24 +36,34 @@ class DatabaseService:
         # Инициализация моделей
         self.models = Database(self.db).models
         # Генерируем схемы таблиц
-        self.db.generate_mapping()
+        self.db.generate_mapping(check_tables=True)
         self.connected = True
         logger.info("База данных успешно инициализирована")
 
     @log_exception
     @db_session
-    def create_project(self, number: str, name: str, customer: str,
-                       chief_engineer: str, status: str, address: str, path: str) -> Any:
+    def create_project(self, name: str, path: str, uid: str, number: str = '', customer: str = '',
+                       chief_engineer: str = '', status: str = '', address: str = '') -> Any:
         """
         Создание нового проекта.
-        :param number: Номер проекта
         :param name: Название проекта
-        :param customer: Заказчик
-        :param chief_engineer: Главный инженер
-        :param status: Статус проекта
-        :param address: Адрес объекта
+        :type name: str
         :param path: Путь к папке проекта
+        :type path: str
+        :param uid: Уникальный идентификатор
+        :type uid: str
+        :param number: Номер проекта
+        :type number: str
+        :param customer: Заказчик
+        :type customer: str
+        :param chief_engineer: Главный инженер
+        :type chief_engineer: str
+        :param status: Статус проекта
+        :type status: str
+        :param address: Адрес объекта
+        :type address: str
         :return: Созданный проект
+        :rtype: Any
         """
 
         project = self.models.Project(
@@ -63,7 +73,8 @@ class DatabaseService:
             chief_engineer=chief_engineer,
             status=status,
             address=address,
-            path=path
+            path=path,
+            uid=uid,
         )
         logger.debug(f"Создан новый проект: {project}")
         return project
@@ -102,6 +113,15 @@ class DatabaseService:
             projects = self.models.Project.select()[:]
         results = []
         for project in projects:
-            if query in f"{project.number.lower()} {project.name.lower()} {project.customer.lower()}":
+            if query in f"{str(project.number).lower()} {project.name.lower()} {str(project.customer).lower()}":
                 results.append((project.id, project.number, project.name, project.customer))
         return results
+
+    @log_exception
+    @db_session
+    def get_project_from_uid(self, uid: str) -> Any:
+        logger.debug(f"Получение проекта по уникальному идентификатору: uid={uid}")
+        try:
+            return self.models.Project.select_by_sql("SELECT * FROM Объекты WHERE uid = $uid")[0]
+        except IndexError:
+            return None

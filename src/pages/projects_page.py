@@ -24,7 +24,7 @@ class ProjectsPage(BasePage):
         self.results_list = None
         self.loading_indicator = None
         self.search_field = None
-        self.project_service = ProjectService(self.app.database_service)
+        self.project_service = ProjectService(self.app.database_service, self.app.settings)
 
         # Пагинация/ленивая загрузка
         self._all_results: list[tuple] = []  # (project_id, number, name, customer)
@@ -73,7 +73,7 @@ class ProjectsPage(BasePage):
                     ft.ElevatedButton(
                         icon=ft.Icons.ADD,
                         text="Добавить объект",
-                        on_click=lambda e: AddProjectDialog(self.app).show(),
+                        on_click=lambda e: AddProjectDialog(self).show(),
                     ),
                 ], alignment=ft.MainAxisAlignment.END),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),

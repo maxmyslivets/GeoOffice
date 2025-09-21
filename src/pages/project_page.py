@@ -4,7 +4,7 @@ import flet as ft
 from pathlib import Path
 
 from .base_page import BasePage
-from models.project_model import Project
+from models.project_model import ProjectModel
 from services.project_service import ProjectService
 from utils.logger_config import log_exception
 from components.link_section import LinkSection
@@ -20,7 +20,7 @@ class ProjectPage(BasePage):
     def __init__(self, app, project_id: int):
         super().__init__(app)
 
-        self.project_service = ProjectService(app.database_service)
+        self.project_service = ProjectService(app.database_service, app.settings)
 
         # Загружаем данные проекта
         self.project = self.project_service.get_project(project_id)

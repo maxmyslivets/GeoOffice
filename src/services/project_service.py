@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import uuid
 import warnings
 from pathlib import Path
@@ -7,7 +8,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
 
-from models.project_model import Project
+from models.project_model import ProjectModel
+from models.settings_model import Settings
 from services.database_service import DatabaseService
 from utils.file_utils import FileUtils
 from utils.logger_config import log_exception, get_logger
@@ -21,13 +23,14 @@ class ProjectService:
     Обеспечивает загрузку, сохранение, поиск и управление данными проектов.
     """
     
-    def __init__(self, database_service: DatabaseService):
+    def __init__(self, database_service: DatabaseService, settings: Settings):
         """Инициализация сервиса проектов"""
         self.database_service = database_service
+        self.app_settings = settings
         logger.info(f"Инициализирован сервис проектов.")
 
     @log_exception
-    def get_project(self, project_id: int) -> Optional[Project]:
+    def get_project(self, project_id: int) -> Optional[ProjectModel]:
         """
         Получить проект по id.
         :param project_id: id проекта
@@ -36,7 +39,7 @@ class ProjectService:
         project_data = self.database_service.get_project_from_id(project_id).to_dict()
         project_data['created_date'] = datetime.fromisoformat(project_data['created_date'])
         project_data['modified_date'] = datetime.fromisoformat(project_data['modified_date'])
-        return Project(**project_data)
+        return ProjectModel(**project_data)
 
     @log_exception
     def diff_projects(self, projects_dirpath: str | Path) -> dict[str, list[str]]:
@@ -111,15 +114,38 @@ class ProjectService:
         }
 
     @log_exception
-    def create_project(self, number: str, name: str, customer: str = "") -> Project:
+    def create_project(self, name: str | None, path: str|Path, exists: bool = False) -> ProjectModel:
         """
-        Создать новый проект.
-        :param number: Номер проекта
+        Создать проект.
         :param name: Название проекта
-        :param customer: Заказчик
-        :return: Созданный проект
+        :type name: str
+        :param path: Путь
+        :type path: str
+        :param exists: Если папка объекта уже создана
+        :type exists: bool
+        :return: Проект к папке проекта
+        :rtype: Project
         """
-        pass
+        projects_dir = self.app_settings.paths.get_projects_pathdir()
+        if exists:
+            project_path = projects_dir / path
+            project_name = project_path.name
+        else:
+            project_path = projects_dir / path / name
+            project_name = name
+            template_dir = projects_dir / self.app_settings.paths.project_template_dir
+            shutil.copytree(template_dir, project_path)
+        geo_office_project_filepath = project_path / ".geo_office_project"
+        uid = self._set_uuid(geo_office_project_filepath)
+        project = self.database_service.get_project_from_uid(uid)
+        if project is not None:
+            raise Warning(f"Объект '{project_name}' ранее уже был добавлен под названием "
+                          f"'{project.number} {project.name}'")
+        project = self.database_service.create_project(name=project_name, path=str(project_path), uid=uid)
+        project_data = project.to_dict()
+        project_data['created_date'] = datetime.fromisoformat(project_data['created_date'])
+        project_data['modified_date'] = datetime.fromisoformat(project_data['modified_date'])
+        return ProjectModel(**project_data)
 
     @log_exception
     def create_file_project(self, path: str|Path) -> Path:
@@ -143,7 +169,7 @@ class ProjectService:
         return file_path
 
     @log_exception
-    def set_uuid(self, path: str|Path) -> str:
+    def _set_uuid(self, path: str|Path) -> str:
         """
         Добавляет в файл ``.geo_office_project`` уникальный идентификатор.
         :param path: Путь к файлу ``.geo_office_project``.
@@ -176,31 +202,10 @@ class ProjectService:
                 f.write(str(uid))
         except PermissionError:
             raise PermissionError("Файл скрыт или защищен от записи")
-        protect_result = FileUtils.manage_file_attributes(path, "protect")
-        if protect_result["error"] is not None:
-            warnings.warn(f"Не удалось установить защиту на файл проекта.\n{protect_result['error']}")
+        # protect_result = FileUtils.manage_file_attributes(path, "protect")
+        # if protect_result["error"] is not None:
+        #     warnings.warn(f"Не удалось установить защиту на файл проекта.\n{protect_result['error']}")
         return str(uid)
-
-    @log_exception
-    def add_project(self, number: str, name: str, customer: str, chief_engineer: str, status: str,
-                    address: str, path: str | Path) -> Project:
-        """
-        Обновить данные проекта.
-        :param number: Номер проекта
-        :param name: Название проекта
-        :param customer: Заказчик
-        :param chief_engineer: Главный инженер
-        :param status: Статус проекта
-        :param address: Адрес объекта
-        :param path: Путь к папке проекта
-        :return: Созданный проект
-        """
-        project = self.database_service.create_project(number, name, customer, chief_engineer, status, address,
-                                                       str(path))
-        project_data = project.to_dict()
-        project_data['created_date'] = datetime.fromisoformat(project_data['created_date'])
-        project_data['modified_date'] = datetime.fromisoformat(project_data['modified_date'])
-        return Project(**project_data)
 
     @log_exception
     def delete_project(self, project_id: int) -> bool:

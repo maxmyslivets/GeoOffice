@@ -29,6 +29,7 @@ class Paths:
     """
     file_server: str
     projects_folder: str
+    project_template_dir: str
     favorite_folders: list[list[str]]
     database_path: str
 
@@ -89,6 +90,7 @@ class Settings:
         self.paths = Paths(
             file_server="...",
             projects_folder='...',
+            project_template_dir='...',
             favorite_folders=[
                 ['Запись', 'D:\\Запись'],
                 ['Scan', 'D:\\scan'],
