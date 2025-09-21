@@ -134,12 +134,15 @@ class FileUtils:
 
     @staticmethod
     @log_exception
-    def manage_file_attributes(file_path: str, action: str = "show") -> Dict[str, Any]:
+    def manage_file_attributes(file_path: str|Path, action: str = "show") -> Dict[str, Any]:
         """
         Управление атрибутами файла в Windows.
         :param file_path: Путь к файлу
+        :type file_path: str | Path
         :param action: Действие ("show", "hide", "protect", "unprotect")
+        :type action: str
         :return: Словарь с результатом
+        :rtype: Dict[str, Any]
         """
         path = Path(file_path)
         result = {

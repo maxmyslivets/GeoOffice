@@ -1,5 +1,7 @@
 import os
 import re
+import uuid
+import warnings
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -129,13 +131,55 @@ class ProjectService:
         :rtype: Path
         :raises FileNotFoundError: Если указанная папка не существует.
         :raises NotADirectoryError: Если указанный путь существует, но не является папкой.
+        :raises FileExistsError: Если файл ``.geo_office_project`` уже существует в указанной папке.
         """
         path = Path(path)
         if not path.is_dir():
             raise FileNotFoundError(f"Каталог {path} не существует")
         file_path = path / ".geo_office_project"
-        file_path.touch(exist_ok=True)
+        if not file_path.is_file():
+            raise PermissionError(f"'{file_path}' не является файлом")
+        file_path.touch(exist_ok=False)
         return file_path
+
+    @log_exception
+    def set_uuid(self, path: str|Path) -> str:
+        """
+        Добавляет в файл ``.geo_office_project`` уникальный идентификатор.
+        :param path: Путь к файлу ``.geo_office_project``.
+        :type path: str | Path
+        :return: Уникальный идентификатор
+        :rtype: str
+        :raises FileExistsError: Если файл скрыт или защищен от записи.
+        :raises PermissionError: Если файл скрыт или защищен от записи.
+        """
+        path = Path(path)
+        if path.exists():
+            if not path.is_dir():
+                with path.open("r", encoding="utf-8") as f:
+                    text = f.read()
+                    if len(text) > 0:
+                        try:
+                            uid = uuid.UUID("{" + f"{text}" + "}")
+                            warnings.warn(f"В файле уже записан uuid: {str(uid)}")
+                            return str(uid)
+                        except ValueError:
+                            with open(str(path) + ".bak", "w", encoding="utf-8") as f_bak:
+                                f_bak.write(text)
+                            warnings.warn(f"В файле уже было записано содержимое, не являющееся uuid. "
+                                          f"Копия содержимого сохранена в файле {str(path) + ".bak"}.")
+            else:
+                raise PermissionError(f"'{path}' не является файлом")
+        uid = uuid.uuid4()
+        try:
+            with path.open("w", encoding="utf-8") as f:
+                f.write(str(uid))
+        except PermissionError:
+            raise PermissionError("Файл скрыт или защищен от записи")
+        protect_result = FileUtils.manage_file_attributes(path, "protect")
+        if protect_result["error"] is not None:
+            warnings.warn(f"Не удалось установить защиту на файл проекта.\n{protect_result['error']}")
+        return str(uid)
 
     @log_exception
     def add_project(self, number: str, name: str, customer: str, chief_engineer: str, status: str,
