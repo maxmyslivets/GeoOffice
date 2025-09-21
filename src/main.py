@@ -153,8 +153,11 @@ class GeoOfficeApp:
 
         self.connect_database()
 
-        updater = Updater(repo="maxmyslivets/GeoOffice", current_version=__version__)
-        updater.show_update_dialog(self.page)
+        try:
+            updater = Updater(repo="maxmyslivets/GeoOffice", current_version=__version__)
+            updater.show_update_dialog(self.page)
+        except Exception as e:
+            self.show_error(e)
 
     @log_exception
     def create_menu(self):
