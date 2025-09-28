@@ -26,19 +26,10 @@ class ProjectPage(BasePage):
         self.project = self.project_service.get_project(project_id)
         
         # UI компоненты
-        self.project_info_card = None
-        self.deadline_card = None
-        navigation_panel = None
-        tools_panel = None
-        documents_list = None
-
-        # self.documents_list = None
-        # self.actions_row = None
-        # self.status_badge = None
-        # self.customer_text = None
-        # self.description_text = None
-        # self.created_date_text = None
-        # self.modified_date_text = None
+        self.header = self.create_header()
+        self.link_section = self.create_link_section()
+        self.project_info_card = self.create_project_info_card()
+        self.deadline_card = self.create_deadline_card()
 
         self.logger.info(f"Инициализирована страница объекта id={project_id}")
 
@@ -50,27 +41,41 @@ class ProjectPage(BasePage):
         """
         return ft.Column([
             # Заголовок страницы
-            self.create_header(),
+            self.header,
             ft.Divider(height=20),
-            self.create_link_section(),
-            self.create_project_info_card(),
-            self.create_deadline_card(),
+            self.link_section,
+            self.project_info_card,
+            self.deadline_card,
         ])
 
     @log_exception
     def create_header(self):
         """Создание заголовка страницы"""
         return ft.Row([
-            # ft.Icon(ft.Icons.FOLDER, color=ft.Colors.BLUE, size=32),
             ft.Column([
                 ft.Text(f"{self.project.number} {self.project.name}", size=28, weight=ft.FontWeight.BOLD,
                         max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, expand=True),
                 ft.Text(self.project.customer, size=18, color=ft.Colors.GREY_600,
                         overflow=ft.TextOverflow.ELLIPSIS, expand=True),
                 ft.Text(self.project.chief_engineer, size=18, color=ft.Colors.GREY_600, weight=ft.FontWeight.BOLD,
-                        overflow=ft.TextOverflow.ELLIPSIS, expand=True)
+                        overflow=ft.TextOverflow.ELLIPSIS, expand=True),
+                ft.Row([ft.Text(self.project.modified_date.strftime('Изм. %a, %d %B %Y, %H:%M:%S'), size=10,
+                                color=ft.Colors.GREY),], alignment=ft.MainAxisAlignment.END),
             ], spacing=5, expand=True),
         ], spacing=15, vertical_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
+
+    def create_link_section(self):
+        project_path = self.project.get_path(
+            Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
+        try:
+            links = [[name, Path(project_path) / name]
+                     for name in os.listdir(project_path) if (Path(project_path) / name).is_dir()]
+        except FileNotFoundError as e:
+            self.app.show_warning(e)
+            links = []
+        links.insert(0, [self.project.number, project_path])
+        link_section = LinkSection(self.app).create(title="Быстрый доступ", links=links, is_edit=False)
+        return link_section
 
     @log_exception
     def create_project_info_card(self):
@@ -93,7 +98,6 @@ class ProjectPage(BasePage):
                                 ft.SelectionArea(ft.Text(self.project.address))]),
                     ]),
                     ft.Row([
-                        ft.Text("Изменен 04.07.2025 18:48", size=10, color=ft.Colors.GREY),
                         ft.TextButton("Редактировать",
                                       on_click=lambda _: self.app.show_warning("Функция находится в разработке"))
                     ], alignment=ft.MainAxisAlignment.END),
@@ -102,19 +106,6 @@ class ProjectPage(BasePage):
                 border_radius=8,
                 expand=True
             ), expand=True)     # FIXME: Сделать горизонтальную прокрутку
-
-    def create_link_section(self):
-        project_path = self.project.get_path(
-            Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
-        try:
-            links = [[name, Path(project_path) / name]
-                     for name in os.listdir(project_path) if (Path(project_path) / name).is_dir()]
-        except FileNotFoundError as e:
-            self.app.show_warning(e)
-            links = []
-        links.insert(0, [self.project.number, project_path])
-        link_section = LinkSection(self.app).create(title="Быстрый доступ", links=links, is_edit=False)
-        return link_section
 
     @log_exception
     def create_deadline_card(self):
@@ -140,7 +131,6 @@ class ProjectPage(BasePage):
                                 ft.Text(self.project.created_date.date().strftime("%d.%m.%Y"))]),
                     ]),
                     ft.Row([
-                        ft.Text("Изменен 04.07.2025 18:48", size=10, color=ft.Colors.GREY),
                         ft.TextButton("Редактировать",
                                       on_click=lambda _: self.app.show_warning("Функция находится в разработке"))
                     ], alignment=ft.MainAxisAlignment.END),

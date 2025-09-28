@@ -10,6 +10,12 @@ from utils.logger_config import setup_logging, get_logger, log_exception
 logger = get_logger("main")
 
 try:
+    import locale
+    locale.setlocale(locale.LC_ALL, 'Russian_Russia.1251') # Для Windows
+except locale.Error:
+    logger.error("Не удалось установить русскую локаль. Возможно, она не установлена в вашей системе.")
+
+try:
     from pages.dashboard_page import DashboardPage
     from pages.projects_page import ProjectsPage
     from pages.project_page import ProjectPage
