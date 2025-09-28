@@ -19,7 +19,7 @@ class DashboardPage(BasePage):
         """
         super().__init__(app)
         self.page = None
-        self.project_service = ProjectService(app.database_service)
+        self.project_service = ProjectService(app.database_service, app.settings)
 
     def get_content(self):
         """

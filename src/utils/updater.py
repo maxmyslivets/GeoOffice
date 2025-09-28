@@ -20,7 +20,13 @@ class Updater:
         url = f"https://api.github.com/repos/{self.repo}/releases/latest"
         response = requests.get(url, timeout=5)
         data = response.json()
-        latest_version = data["tag_name"].lstrip("v")
+        try:
+            latest_version = data["tag_name"].lstrip("v")
+        except KeyError as e:
+            if "API rate limit exceeded" in data["message"]:
+                raise KeyError(f"Превышен лимит скорости. Выключение VPN должно помочь проверке обновлений.")
+            else:
+                raise e
         assets = data.get("assets", [])
         download_url = assets[0]["browser_download_url"] if assets else None
 

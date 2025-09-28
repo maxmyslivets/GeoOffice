@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import subprocess
 import platform
 from typing import Dict, Any, Optional
@@ -133,12 +134,15 @@ class FileUtils:
 
     @staticmethod
     @log_exception
-    def manage_file_attributes(file_path: str, action: str = "show") -> Dict[str, Any]:
+    def manage_file_attributes(file_path: str|Path, action: str = "show") -> Dict[str, Any]:
         """
         Управление атрибутами файла в Windows.
         :param file_path: Путь к файлу
+        :type file_path: str | Path
         :param action: Действие ("show", "hide", "protect", "unprotect")
+        :type action: str
         :return: Словарь с результатом
+        :rtype: Dict[str, Any]
         """
         path = Path(file_path)
         result = {
@@ -194,3 +198,21 @@ class FileUtils:
             result['error'] = f"Неожиданная ошибка: {e}"
 
         return result
+
+    @staticmethod
+    def is_valid_dirname(name: str) -> bool:
+        """Проверяет допустимость имени папки (Windows/Linux)."""
+        if not name or name.strip() == "":
+            return False
+
+        # запрещённые символы (Windows)
+        if re.search(r'[<>:"/\\|?*]', name):
+            return False
+
+        # зарезервированные имена Windows
+        reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
+                    *(f"LPT{i}" for i in range(1, 10))}
+        if name.upper() in reserved:
+            return False
+
+        return True

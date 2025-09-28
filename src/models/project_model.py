@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 @dataclass
-class Project:
+class ProjectModel:
     """
     Модель данных проекта.
     :param number: Номер проекта
@@ -32,7 +32,7 @@ class Project:
         ...
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Project':
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProjectModel':
         """Создать из словаря"""
         return cls(**data)
 
