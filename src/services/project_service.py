@@ -217,13 +217,13 @@ class ProjectService:
         pass
 
     @log_exception
-    def get_project_path(self, project_id: int) -> bool:
+    def update_project_in_database(self, project_model: ProjectModel) -> ProjectModel:
         """
-        Добавить документ к проекту.
-        :param project_id: id проекта
+        Изменить проект.
         :return: True если документ добавлен, False если проект не найден
         """
-        pass
+        project_db = self.database_service.update_project(project_model)
+        return ProjectModel(**project_db.to_dict())
 
     @log_exception
     def get_project_statistics(self) -> Dict[str, Any]:

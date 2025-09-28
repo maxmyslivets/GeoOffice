@@ -81,6 +81,20 @@ class DatabaseService:
 
     @log_exception
     @db_session
+    def update_project(self, project_model):
+        project = self.get_project_from_id(project_model.id)
+        project.number = project_model.number
+        project.name = project_model.name
+        project.path = project_model.path
+        project.customer = project_model.customer
+        project.chief_engineer = project_model.chief_engineer
+        project.status = project_model.status
+        project.address = project_model.address
+        project.modified_date = datetime.now()
+        return project
+
+    @log_exception
+    @db_session
     def get_project_from_id(self, project_id: int) -> Any:
         logger.debug(f"Получение проекта по id: id={project_id}")
         return self.models.Project[project_id]

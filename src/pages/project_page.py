@@ -28,8 +28,8 @@ class ProjectPage(BasePage):
         # UI компоненты
         self.header = self.create_header()
         self.link_section = self.create_link_section()
-        self.project_info_card = self.create_project_info_card()
-        self.deadline_card = self.create_deadline_card()
+        self.project_info_container = self.create_project_info_container()
+        self.deadline_container = self.create_deadline_container()
 
         self.logger.info(f"Инициализирована страница объекта id={project_id}")
 
@@ -44,8 +44,8 @@ class ProjectPage(BasePage):
             self.header,
             ft.Divider(height=20),
             self.link_section,
-            self.project_info_card,
-            self.deadline_card,
+            self.project_info_container,
+            self.deadline_container,
         ])
 
     @log_exception
@@ -78,67 +78,93 @@ class ProjectPage(BasePage):
         return link_section
 
     @log_exception
-    def create_project_info_card(self):
+    def create_project_info_container(self):
         """Создание информационной карточки проекта"""
-        return ft.Card(content=ft.Container(
-                content=ft.Column([
-                    ft.Row([
-                        ft.Text("Информация об объекте", size=20, weight=ft.FontWeight.BOLD),
-                    ]),
-                    ft.Column([
-                        ft.Row([ft.Text("Номер", weight=ft.FontWeight.BOLD),
-                                ft.SelectionArea(ft.Text(self.project.number))]),
-                        ft.Row([ft.Text("Название", weight=ft.FontWeight.BOLD),
-                                ft.SelectionArea(ft.Text(self.project.name))]),
-                        ft.Row([ft.Text("Заказчик", weight=ft.FontWeight.BOLD),
-                                ft.SelectionArea(ft.Text(self.project.customer))]),
-                        ft.Row([ft.Text("ГИП", weight=ft.FontWeight.BOLD),
-                                ft.SelectionArea(ft.Text(self.project.chief_engineer))]),
-                        ft.Row([ft.Text("Местоположение", weight=ft.FontWeight.BOLD),
-                                ft.SelectionArea(ft.Text(self.project.address))]),
-                    ]),
-                    ft.Row([
-                        ft.TextButton("Редактировать",
-                                      on_click=lambda _: self.app.show_warning("Функция находится в разработке"))
-                    ], alignment=ft.MainAxisAlignment.END),
-                ], spacing=10, alignment=ft.MainAxisAlignment.START),
-                padding=ft.padding.only(left=10, right=10, top=15, bottom=15),
-                border_radius=8,
-                expand=True
-            ), expand=True)     # FIXME: Сделать горизонтальную прокрутку
+        return ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Информация об объекте", size=20, weight=ft.FontWeight.BOLD),
+                ]),
+                ft.Column([
+                    ft.Row([ft.Text("Номер", weight=ft.FontWeight.BOLD), ft.Text(self.project.number)]),
+                    ft.Row([ft.Text("Название", weight=ft.FontWeight.BOLD), ft.Text(self.project.name)]),
+                    ft.Row([ft.Text("Заказчик", weight=ft.FontWeight.BOLD), ft.Text(self.project.customer)]),
+                    ft.Row([ft.Text("ГИП", weight=ft.FontWeight.BOLD), ft.Text(self.project.chief_engineer)]),
+                    ft.Row([ft.Text("Местоположение", weight=ft.FontWeight.BOLD), ft.Text(self.project.address)]),
+                ]),
+            ], spacing=10, alignment=ft.MainAxisAlignment.START),
+            padding=ft.padding.only(left=10, right=10, top=15, bottom=15),
+            border_radius=8,
+            ink=True,
+            on_click=lambda _: self.edit_project_info_container(),
+        )
 
     @log_exception
-    def create_deadline_card(self):
-        return ft.Card(content=ft.Container(
-                content=ft.Column([
-                    ft.Row([
-                        ft.Text("Сроки", size=20, weight=ft.FontWeight.BOLD),
-                    ]),
-                    ft.Column([
-                        ft.Text("Заказчику", weight=ft.FontWeight.BOLD),
-                        ft.Row([ft.Text("Начало работ", weight=ft.FontWeight.W_600),
-                                ft.Text(self.project.created_date.date().strftime("%d.%m.%Y"))]),
-                        ft.Row([ft.Text("Предварительные выдачи", weight=ft.FontWeight.W_600),
-                                ft.Text(self.project.created_date.date().strftime("%d.%m.%Y")),
-                                ft.Text(self.project.created_date.date().strftime("%d.%m.%Y")),]),
-                        ft.Row([ft.Text("Итоговая выдача", weight=ft.FontWeight.W_600),
-                                ft.Text(self.project.created_date.date().strftime("%d.%m.%Y"))]),
-                        ft.Text("Архитектуре", weight=ft.FontWeight.BOLD),
-                        ft.Row([ft.Text("Сдать материалы до", weight=ft.FontWeight.W_600),
-                                ft.Text(self.project.created_date.date().strftime("%d.%m.%Y"))]),
-                        ft.Text("Смежникам", weight=ft.FontWeight.BOLD),
-                        ft.Row([ft.Text("ГИПу", weight=ft.FontWeight.W_600),
-                                ft.Text(self.project.created_date.date().strftime("%d.%m.%Y"))]),
-                    ]),
-                    ft.Row([
-                        ft.TextButton("Редактировать",
-                                      on_click=lambda _: self.app.show_warning("Функция находится в разработке"))
-                    ], alignment=ft.MainAxisAlignment.END),
-                ], spacing=10, alignment=ft.MainAxisAlignment.START),
-                padding=ft.padding.only(left=10, right=10, top=15, bottom=15),
-                border_radius=8,
-                expand=True,
-            ))     # FIXME: Сделать горизонтальную прокрутку
+    def edit_project_info_container(self):
+        old_content = self.project_info_container.content
+        old_click = self.project_info_container.on_click
+        old_border = self.project_info_container.border
+        def save():
+            self.project.number = tf_number.value
+            self.project.name = tf_name.value
+            self.project.customer = tf_customer.value
+            self.project.chief_engineer = tf_chief_engineer.value
+            self.project.address = tf_address.value
+            self.project_service.update_project_in_database(self.project)
+            self.project_info_container.content = old_content
+            self.project_info_container.on_click = old_click
+            self.project_info_container.border = old_border
+            self.update_page()
+            self.app.show_project_page(self.project.id)
+
+        tf_number = ft.TextField(label="Номер", value=self.project.number)
+        tf_name = ft.TextField(label="Название", value=self.project.name, max_lines=5)
+        tf_customer = ft.TextField(label="Заказчик", value=self.project.customer, max_lines=5)
+        tf_chief_engineer = ft.TextField(label="ГИП", value=self.project.chief_engineer)
+        tf_address = ft.TextField(label="Местоположение", value=self.project.address, max_lines=5)
+
+        self.project_info_container.on_click=None
+        self.project_info_container.content = ft.Column([
+            ft.Row([ft.Text("Информация об объекте", size=20, weight=ft.FontWeight.BOLD)]),
+            ft.Column([tf_number, tf_name, tf_customer, tf_chief_engineer, tf_address]),
+            ft.Row([ft.TextButton("Сохранить", on_click=lambda _: save())],
+                   alignment=ft.MainAxisAlignment.END)], spacing=10, alignment=ft.MainAxisAlignment.START)
+        self.project_info_container.border = ft.border.all(1, ft.Colors.GREY_500)
+        self.update_page()
+
+
+    @log_exception
+    def create_deadline_container(self):
+        return ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Сроки", size=20, weight=ft.FontWeight.BOLD),
+                ]),
+                ft.Column([
+                    ft.Text("Заказчику", weight=ft.FontWeight.BOLD),
+                    ft.Row([ft.Text("Начало работ", weight=ft.FontWeight.W_600),
+                            ft.Text("не указан")]),
+                    ft.Row([ft.Text("Предварительные выдачи", weight=ft.FontWeight.W_600),
+                            ft.Text("не указан"),
+                            ft.Text("не указан"),]),
+                    ft.Row([ft.Text("Итоговая выдача", weight=ft.FontWeight.W_600),
+                            ft.Text("не указан")]),
+                    ft.Text("Архитектуре", weight=ft.FontWeight.BOLD),
+                    ft.Row([ft.Text("Сдать материалы до", weight=ft.FontWeight.W_600),
+                            ft.Text("не указан")]),
+                    ft.Text("Смежникам", weight=ft.FontWeight.BOLD),
+                    ft.Row([ft.Text("ГИПу", weight=ft.FontWeight.W_600),
+                            ft.Text("не указан")]),
+                ]),
+                ft.Row([
+                    ft.TextButton("Редактировать",
+                                  on_click=lambda _: self.app.show_warning("Функция находится в разработке"))
+                ], alignment=ft.MainAxisAlignment.END),
+            ], spacing=10, alignment=ft.MainAxisAlignment.START),
+            padding=ft.padding.only(left=10, right=10, top=15, bottom=15),
+            border_radius=8,
+            expand=True,
+        )     # FIXME: Сделать горизонтальную прокрутку
 
     # @log_exception
     # def create_actions_section(self):
