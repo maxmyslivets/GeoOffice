@@ -109,6 +109,7 @@ class GeoOfficeApp:
         self.page = page
         page.title = "GeoOffice"
         page.theme_mode = "dark" if self.settings.interface.dark_mode else "light"
+        # FIXME: При переключении мониторов сбивается положение окна и может уйти за пределы рабочего стола
         page.window.width = self.settings.interface.width
         page.window.height = self.settings.interface.height
         page.window.min_width = 800
