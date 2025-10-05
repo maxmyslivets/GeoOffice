@@ -5,6 +5,7 @@ from pathlib import Path
 import flet as ft
 
 from utils.logger_config import setup_logging, get_logger, log_exception
+from utils.monitor import correct_window_position
 
 # Настройка логирования
 logger = get_logger("main")
@@ -82,6 +83,7 @@ class GeoOfficeApp:
     @log_exception
     def load_settings(self) -> None:
         """Чтение настроек приложения"""
+        # FIXME: При установке новой версии пересоздается файл настроек
         logger.debug("Чтение настроек приложения")
         settings_data = FileUtils.load_json(Path(self.storage_path) / "settings.json")
         if settings_data is not None:
@@ -109,13 +111,14 @@ class GeoOfficeApp:
         self.page = page
         page.title = "GeoOffice"
         page.theme_mode = "dark" if self.settings.interface.dark_mode else "light"
-        # FIXME: При переключении мониторов сбивается положение окна и может уйти за пределы рабочего стола
-        page.window.width = self.settings.interface.width
-        page.window.height = self.settings.interface.height
+        left, top, width, height = correct_window_position(self.settings.interface.left, self.settings.interface.top,
+                                                           self.settings.interface.width, self.settings.interface.height)
+        page.window.width = width
+        page.window.height = height
         page.window.min_width = 800
         page.window.min_height = 600
-        page.window.left = self.settings.interface.left
-        page.window.top = self.settings.interface.top
+        page.window.left = left
+        page.window.top = top
         page.padding = 20
 
         page.window.prevent_close = False
