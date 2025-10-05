@@ -43,7 +43,8 @@ class DatabaseService:
     @log_exception
     @db_session
     def create_project(self, name: str, path: str, uid: str, number: str = '', customer: str = '',
-                       chief_engineer: str = '', status: str = '', address: str = '') -> Any:
+                       chief_engineer: str = '', chief_architect: str = '', head_of_the_sanitary: str = '',
+                       status: str = '', address: str = '') -> Any:
         """
         Создание нового проекта.
         :param name: Название проекта
@@ -58,6 +59,10 @@ class DatabaseService:
         :type customer: str
         :param chief_engineer: Главный инженер
         :type chief_engineer: str
+        :param chief_architect: Главный архитектор
+        :type chief_architect: str
+        :param head_of_the_sanitary: Начальник санитарно-технического отдела
+        :type head_of_the_sanitary: str
         :param status: Статус проекта
         :type status: str
         :param address: Адрес объекта
@@ -71,6 +76,8 @@ class DatabaseService:
             name=name,
             customer=customer,
             chief_engineer=chief_engineer,
+            chief_architect=chief_architect,
+            head_of_the_sanitary=head_of_the_sanitary,
             status=status,
             address=address,
             path=path,
@@ -88,6 +95,8 @@ class DatabaseService:
         project.path = project_model.path
         project.customer = project_model.customer
         project.chief_engineer = project_model.chief_engineer
+        project.chief_architect = project_model.chief_architect
+        project.head_of_the_sanitary = project_model.head_of_the_sanitary
         project.status = project_model.status
         project.address = project_model.address
         project.modified_date = datetime.now()

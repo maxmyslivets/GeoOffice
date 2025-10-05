@@ -27,6 +27,8 @@ class Database:
             name = Required(str)  # Название проекта
             customer = Optional(str, nullable=True)  # Заказчик
             chief_engineer = Optional(str, nullable=True)  # Главный инженер проекта
+            chief_architect = Optional(str, nullable=True)  # Главный архитектор проекта
+            head_of_the_sanitary = Optional(str, nullable=True)  # Начальник санитарно-технического отдела
             status = Optional(str, nullable=True)  # Статус проекта (active, completed, archived)
             address = Optional(str, nullable=True)  # Адрес объекта
             path = Required(str)    # Путь к папке проекта
@@ -61,6 +63,8 @@ class Database:
                     'name': self.name,
                     'customer': self.customer,
                     'chief_engineer': self.chief_engineer,
+                    'chief_architect': self.chief_architect,
+                    'head_of_the_sanitary': self.head_of_the_sanitary,
                     'status': self.status,
                     'address': self.address,
                     'path': self.path,

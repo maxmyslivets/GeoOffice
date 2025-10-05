@@ -21,6 +21,8 @@ class ProjectModel:
     name: str
     customer: str
     chief_engineer: str     # Главный инженер проекта
+    chief_architect: str    # Главный архитектор проекта
+    head_of_the_sanitary: str   # Начальник санитарно-технического отдела
     status: str     # active, completed, archived
     address: str
     path: str
