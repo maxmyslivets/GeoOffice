@@ -72,7 +72,18 @@ class Database:
                     'modified_date': datetime_format(self.modified_date),
                 }
 
+        class SettingsTable(self.db.Entity):
+            """
+            Модель таблицы настроек.
+            """
+            _table_ = "Настройки"
+            id = PrimaryKey(int, auto=True)
+            project_dir = Optional(str, nullable=False)     # путь к папке объектов относительно файлового сервера
+            template_project_dir = Optional(str, nullable=False)  # путь к папке шаблона объектов относительно файлового сервера
+            period_sync_project = Optional(int, nullable=True)  # период синхронизации в минутах
+
         class Models:
             Project = ProjectTable
+            Settings = SettingsTable
 
         return Models
