@@ -1,4 +1,9 @@
+from datetime import datetime
+from typing import Any
+
 import pystray
+from pony.orm import Database as PonyDatabase
+from pony.orm import PrimaryKey, Optional, Required, db_session
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 import tkinter as tk
@@ -18,6 +23,7 @@ class GeoOfficeProjectSyncTrayApp:
     def __init__(self):
         self.is_running = False
         self.server_path = ""
+        self.database_path = ""
         self.sync_period = 5  # временно фиксированное значение, позже будет читаться из базы
         self._sync_thread = None
         self._stop_event = threading.Event()
@@ -75,7 +81,7 @@ class GeoOfficeProjectSyncTrayApp:
     def _save_settings(self):
         """Сохраняет настройки (только путь к серверу) в JSON файл."""
         try:
-            data = {"server_path": self.server_path}
+            data = {"server_path": self.server_path, "database_path": self.database_path}
             with open(self.settings_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             logging.info(f"Настройки сохранены в {self.settings_file}")
@@ -89,6 +95,7 @@ class GeoOfficeProjectSyncTrayApp:
                 with open(self.settings_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 self.server_path = data.get("server_path", "")
+                self.database_path = data.get("database_path", "")
                 logging.info(f"Настройки загружены: сервер = {self.server_path or 'не задан'}")
             else:
                 logging.info("Файл настроек не найден, используется конфигурация по умолчанию.")
@@ -163,8 +170,15 @@ class GeoOfficeProjectSyncTrayApp:
 
         logging.info(f"Выполняется синхронизация с сервером: {self.server_path}")
         # Здесь будет логика синхронизации проектов
-        time.sleep(2)  # TODO: эмуляция процесса
+        db = Database(Path(self.server_path) / "geo_office.db")
+        projects_from_db = db.get_all_projects()
+        projects_from_fs = self._scan_files()
         logging.info("Синхронизация завершена успешно.")
+
+    def _scan_files(self) -> dict[str, str]:
+        # for item in projects_dirpath.rglob(".geo_office_project"):
+        #     projects_in_files.append(item.parent.relative_to(projects_dirpath))
+        pass
 
     # --- Интерфейс ----------------------------------------------------------
 
@@ -199,7 +213,7 @@ class GeoOfficeProjectSyncTrayApp:
 
         settings_win = tk.Tk()
         settings_win.title("Настройки синхронизации")
-        settings_win.geometry("400x180")
+        settings_win.geometry("400x130")
         settings_win.resizable(False, False)
 
         tk.Label(settings_win, text="Путь к файловому серверу:").pack(anchor='w', padx=10, pady=(10, 0))
@@ -248,6 +262,68 @@ class GeoOfficeProjectSyncTrayApp:
             self.start_action(None, None)
         except Exception as e:
             logging.exception("Ошибка при запуске приложения")
+
+
+class Database:
+    def __init__(self, path: Path|str):
+        """
+        Инициализация моделей базы данных.
+        :param db: Экземпляр базы данных Pony ORM
+        """
+        self.db = PonyDatabase()
+        self.db.bind(provider='sqlite', filename=str(path))
+        self.models = self._define_models()
+        self.db.generate_mapping(check_tables=True)
+
+    def _define_models(self) -> Any:
+        """Определение моделей таблиц базы данных"""
+        class ProjectTable(self.db.Entity):
+            """
+            Модель таблицы проектов.
+            Основная таблица для хранения информации о проектах.
+            """
+            _table_ = "Объекты"
+            id = PrimaryKey(int, auto=True)
+            name = Required(str)  # Название проекта
+            path = Required(str)    # Путь к папке проекта
+            uid = Required(str)     # Уникальный идентификатор
+            created_date = Required(datetime, default=datetime.now)
+            modified_date = Required(datetime, default=datetime.now)
+
+        class SettingsTable(self.db.Entity):
+            """
+            Модель таблицы настроек.
+            """
+            _table_ = "Настройки"
+            id = PrimaryKey(int, auto=True)
+            project_dir = Optional(str, nullable=False)     # путь к папке объектов относительно файлового сервера
+            period_sync_project = Optional(int, nullable=True)  # период синхронизации в минутах
+
+        class Models:
+            Project = ProjectTable
+            Settings = SettingsTable
+
+        return Models
+
+    @db_session
+    def get_period(self) -> int:
+        return self.models.Settings[0].period
+
+    @db_session
+    def get_all_projects(self) -> dict[str: str]:
+        projects = self.models.Project.select()[:]
+        result = {}
+        for project in projects:
+            result[project.path] = project.uid
+        return result
+
+    @db_session
+    def create_project(self, path: Path | str, uid: str) -> Any:
+        path = str(path)
+        name = path.split("/")[-1]
+        path = path[:-len(name)]
+        project = self.models.Project(name=name, path=path, uid=uid)
+        return project
 
 
 # --- Точка входа -----------------------------------------------------------
