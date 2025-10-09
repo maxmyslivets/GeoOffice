@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -149,10 +150,9 @@ class GeoOfficeProjectSyncTrayApp:
         def sync_loop():
             while not self._stop_event.is_set():
                 try:
-                    self._sync_projects()
+                    self._run_sync_projects()
                 except Exception as e:
                     logging.exception("Ошибка во время синхронизации проектов")
-
                 # Ждём указанное количество минут
                 if not self._stop_event.wait(self.sync_period * 60):
                     continue
@@ -162,7 +162,7 @@ class GeoOfficeProjectSyncTrayApp:
         self._sync_thread = threading.Thread(target=sync_loop, daemon=True)
         self._sync_thread.start()
 
-    def _sync_projects(self):
+    def _run_sync_projects(self):
         """Заглушка для процесса синхронизации (сюда добавить реальную логику)."""
         if not self.server_path:
             logging.warning("Сервер не задан. Синхронизация пропущена.")
@@ -170,15 +170,67 @@ class GeoOfficeProjectSyncTrayApp:
 
         logging.info(f"Выполняется синхронизация с сервером: {self.server_path}")
         # Здесь будет логика синхронизации проектов
-        db = Database(Path(self.server_path) / "geo_office.db")
+        db = Database(Path(self.server_path) / self.database_path)
+        self.sync_period = db.get_period()
         projects_from_db = db.get_all_projects()
-        projects_from_fs = self._scan_files()
+        projects_from_fs = self._scan_files(path=Path(self.server_path) / db.get_project_dir(),
+                                            template_exc_path=db.get_template_dir())
+        self._sync_projects(projects_from_db, projects_from_fs)
         logging.info("Синхронизация завершена успешно.")
 
-    def _scan_files(self) -> dict[str, str]:
-        # for item in projects_dirpath.rglob(".geo_office_project"):
-        #     projects_in_files.append(item.parent.relative_to(projects_dirpath))
-        pass
+    def _scan_files(self, path: Path|str, template_exc_path: Path|str) -> dict[str, str]:
+        result = {}
+        for file in path.rglob(".geo_office_project"):
+            if file.parent == path / template_exc_path:
+                continue
+            with file.open("r", encoding="utf-8") as f:
+                data = f.read()
+            result[str(file.parent.relative_to(path))] = data
+        return result
+
+    def _is_uid(self, uid: str) -> bool:
+        try:
+            uuid.UUID("{" + f"{uid}" + "}")
+            return True
+        except ValueError:
+            return False
+
+    def _sync_projects(self, in_database: dict[str: str], in_files: dict[str: str]) -> None:
+
+        for path in set(in_database.keys()) | set(in_files.keys()):
+
+            if path in set(in_database.keys()) & set(in_files.keys()):
+                uid_db = self._is_uid(in_database[path])
+                uid_files = self._is_uid(in_files[path])
+                if (not uid_db) & (not uid_files):
+                    # TODO: добавить uid в файл и в бд
+                    continue
+                elif (not uid_db) & uid_files:
+                    # TODO: ...
+                    continue
+                elif uid_db & (not uid_files):
+                    # TODO: ...
+                    continue
+                else:
+                    continue
+
+            elif path in in_database:
+                uid_db = self._is_uid(in_database[path])
+                if uid_db:
+                    # TODO: ...
+                    continue
+                else:
+                    # TODO: ...
+                    continue
+
+            elif path in in_files:
+                uid_files = self._is_uid(in_files[path])
+                if uid_files:
+                    # TODO: ...
+                    continue
+                else:
+                    # TODO: ...
+                    continue
 
     # --- Интерфейс ----------------------------------------------------------
 
@@ -206,6 +258,7 @@ class GeoOfficeProjectSyncTrayApp:
         def save_settings():
             try:
                 self.server_path = server_var.get().strip()
+                self.database_path = database_var.get().strip()
                 self._save_settings()
                 settings_win.destroy()
             except Exception as e:
@@ -213,7 +266,7 @@ class GeoOfficeProjectSyncTrayApp:
 
         settings_win = tk.Tk()
         settings_win.title("Настройки синхронизации")
-        settings_win.geometry("400x130")
+        settings_win.geometry("400x180")
         settings_win.resizable(False, False)
 
         tk.Label(settings_win, text="Путь к файловому серверу:").pack(anchor='w', padx=10, pady=(10, 0))
@@ -222,6 +275,11 @@ class GeoOfficeProjectSyncTrayApp:
         path_frame.pack(fill='x', padx=10)
         tk.Entry(path_frame, textvariable=server_var).pack(side='left', fill='x', expand=True)
         ttk.Button(path_frame, text="Обзор...", command=browse_folder).pack(side='right', padx=5)
+
+        # Период синхронизации
+        tk.Label(settings_win, text="Имя базы данных:").pack(anchor='w', padx=10, pady=(10, 0))
+        database_var = tk.StringVar(value=str(self.database_path))
+        ttk.Entry(settings_win, textvariable=database_var, width=30).pack(padx=10, anchor='w')
 
         ttk.Button(settings_win, text="Сохранить", command=save_settings).pack(pady=20)
         settings_win.mainloop()
@@ -273,7 +331,7 @@ class Database:
         self.db = PonyDatabase()
         self.db.bind(provider='sqlite', filename=str(path))
         self.models = self._define_models()
-        self.db.generate_mapping(check_tables=True)
+        self.db.generate_mapping(check_tables=True, create_tables=True)
 
     def _define_models(self) -> Any:
         """Определение моделей таблиц базы данных"""
@@ -297,6 +355,8 @@ class Database:
             _table_ = "Настройки"
             id = PrimaryKey(int, auto=True)
             project_dir = Optional(str, nullable=False)     # путь к папке объектов относительно файлового сервера
+            template_project_dir = Optional(str, nullable=False)    # путь к папке шаблона объектов относительно
+                                                                    # файлового сервера
             period_sync_project = Optional(int, nullable=True)  # период синхронизации в минутах
 
         class Models:
@@ -307,7 +367,15 @@ class Database:
 
     @db_session
     def get_period(self) -> int:
-        return self.models.Settings[0].period
+        return self.models.Settings[1].period_sync_project
+
+    @db_session
+    def get_project_dir(self) -> str:
+        return self.models.Settings[1].project_dir
+
+    @db_session
+    def get_template_dir(self) -> str:
+        return self.models.Settings[1].template_project_dir
 
     @db_session
     def get_all_projects(self) -> dict[str: str]:
