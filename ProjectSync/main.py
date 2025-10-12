@@ -227,22 +227,6 @@ class GeoOfficeProjectSyncTrayApp:
             logging.exception(f"Ошибка при чтении UID из файла {path}: {e}")
             return ""
 
-    def _find_file_by_uid(self, uid: str) -> str:
-        """Находит путь к файлу проекта по UID."""
-        try:
-            db = Database(Path(self.server_path) / self.database_path)
-            project_dir = db.get_project_dir()
-            projects_path = Path(self.server_path) / project_dir
-            
-            for file in projects_path.rglob(".geo_office_project"):
-                with file.open("r", encoding="utf-8") as f:
-                    file_uid = f.read().strip()
-                if file_uid == uid:
-                    return str(file.parent.relative_to(projects_path))
-            return ""
-        except Exception as e:
-            logging.exception(f"Ошибка при поиске файла по UID {uid}: {e}")
-            return ""
 
     def _sync_projects(self, in_database: dict[str: str], in_files: dict[str: str]) -> None:
         """
@@ -307,16 +291,9 @@ class GeoOfficeProjectSyncTrayApp:
         db_only_uids = db_uids - file_uids
         for uid in db_only_uids:
             try:
-                # Ищем файл по UID
-                found_file_path = self._find_file_by_uid(uid)
-                if found_file_path:
-                    # Файл найден - обновляем путь в БД
-                    db.update_project_path(uid, found_file_path)
-                    logging.info(f"Найден файл для UID {uid}, обновлен путь: {found_file_path}")
-                else:
-                    # Файл не найден - удаляем из БД
-                    db.delete_project_by_uid(uid)
-                    logging.info(f"Удален проект из БД (файл не найден): {uid}")
+                # UID есть только в БД - удаляем из БД (файла нет в доступных)
+                db.delete_project_by_uid(uid)
+                logging.info(f"Удален проект из БД (файл не найден): {uid}")
                     
             except Exception as e:
                 logging.exception(f"Ошибка при обработке UID только в БД {uid}: {e}")
