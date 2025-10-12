@@ -291,9 +291,9 @@ class GeoOfficeProjectSyncTrayApp:
         db_only_uids = db_uids - file_uids
         for uid in db_only_uids:
             try:
-                # UID есть только в БД - удаляем из БД (файла нет в доступных)
-                db.delete_project_by_uid(uid)
-                logging.info(f"Удален проект из БД (файл не найден): {uid}")
+                # UID есть только в БД - помечаем как удаленный (файла нет в доступных)
+                db.mark_project_as_deleted(uid)
+                logging.info(f"Проект помечен как удаленный (файл не найден): {uid}")
                     
             except Exception as e:
                 logging.exception(f"Ошибка при обработке UID только в БД {uid}: {e}")
@@ -311,9 +311,24 @@ class GeoOfficeProjectSyncTrayApp:
                         break
                 
                 if file_path:
-                    # Добавляем в БД
-                    db.create_project(file_path, uid)
-                    logging.info(f"Добавлен новый проект в БД: {file_path} (UID: {uid})")
+                    # Проверяем, есть ли проект с таким UID в БД (возможно, помечен как удаленный)
+                    existing_project = db.get_project_by_uid(uid)
+                    if existing_project:
+                        if existing_project.status == "deleted":
+                            # Восстанавливаем проект
+                            existing_project.status = "active"
+                            existing_project.path = file_path
+                            existing_project.modified_date = datetime.now()
+                            logging.info(f"Восстановлен проект: {file_path} (UID: {uid})")
+                        else:
+                            # Проект уже активен - обновляем путь
+                            existing_project.path = file_path
+                            existing_project.modified_date = datetime.now()
+                            logging.info(f"Обновлен путь активного проекта: {file_path} (UID: {uid})")
+                    else:
+                        # Создаем новый проект
+                        db.create_project(file_path, uid)
+                        logging.info(f"Добавлен новый проект в БД: {file_path} (UID: {uid})")
                     
             except Exception as e:
                 logging.exception(f"Ошибка при обработке UID только в файлах {uid}: {e}")
@@ -446,6 +461,7 @@ class Database:
             name = Required(str)  # Название проекта
             path = Required(str)    # Путь к папке проекта
             uid = Required(str)     # Уникальный идентификатор
+            status = Required(str, default="active")  # Статус проекта: active, deleted
             created_date = Required(datetime, default=datetime.now)
             modified_date = Required(datetime, default=datetime.now)
 
@@ -480,7 +496,8 @@ class Database:
 
     @db_session
     def get_all_projects(self) -> dict[str: str]:
-        projects = self.models.Project.select()[:]
+        """Возвращает только активные проекты (статус 'active')."""
+        projects = self.models.Project.select(lambda p: p.status == "active")[:]
         result = {}
         for project in projects:
             result[project.path] = project.uid
@@ -540,6 +557,17 @@ class Database:
             logging.debug(f"Проект с UID {uid} удален из БД")
         else:
             logging.warning(f"Проект с UID {uid} не найден в БД для удаления")
+
+    @db_session
+    def mark_project_as_deleted(self, uid: str) -> None:
+        """Помечает проект как удаленный (устанавливает статус 'deleted')."""
+        project = self.models.Project.get(uid=uid)
+        if project:
+            project.status = "deleted"
+            project.modified_date = datetime.now()
+            logging.debug(f"Проект с UID {uid} помечен как удаленный")
+        else:
+            logging.warning(f"Проект с UID {uid} не найден в БД для пометки как удаленный")
 
 
 # --- Точка входа -----------------------------------------------------------
