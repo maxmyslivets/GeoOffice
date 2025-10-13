@@ -14,7 +14,6 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import threading
-import time
 import json
 
 
@@ -164,8 +163,8 @@ class GeoOfficeProjectSyncTrayApp:
 
     def _run_sync_projects(self):
         """Заглушка для процесса синхронизации (сюда добавить реальную логику)."""
-        if not self.server_path:
-            logging.warning("Сервер не задан. Синхронизация пропущена.")
+        if (not self.server_path) or (not self.database_path):
+            logging.warning("Сервер или база данных не заданы. Синхронизация пропущена.")
             return
 
         logging.info(f"Выполняется синхронизация с сервером: {self.server_path}")
@@ -209,24 +208,6 @@ class GeoOfficeProjectSyncTrayApp:
         except Exception as e:
             logging.exception(f"Ошибка при записи UID в файл {path}: {e}")
             raise
-
-    def _get_uid_from_file(self, path: str) -> str:
-        """Получает UID из файла .geo_office_project."""
-        try:
-            # Получаем путь к папке проектов из настроек БД
-            db = Database(Path(self.server_path) / self.database_path)
-            project_dir = db.get_project_dir()
-            project_path = Path(self.server_path) / project_dir / path / ".geo_office_project"
-            
-            if project_path.exists():
-                with project_path.open("r", encoding="utf-8") as f:
-                    uid = f.read().strip()
-                return uid
-            return ""
-        except Exception as e:
-            logging.exception(f"Ошибка при чтении UID из файла {path}: {e}")
-            return ""
-
 
     def _sync_projects(self, in_database: dict[str: str], in_files: dict[str: str]) -> None:
         """
@@ -311,24 +292,9 @@ class GeoOfficeProjectSyncTrayApp:
                         break
                 
                 if file_path:
-                    # Проверяем, есть ли проект с таким UID в БД (возможно, помечен как удаленный)
-                    existing_project = db.get_project_by_uid(uid)
-                    if existing_project:
-                        if existing_project.status == "deleted":
-                            # Восстанавливаем проект
-                            existing_project.status = "active"
-                            existing_project.path = file_path
-                            existing_project.modified_date = datetime.now()
-                            logging.info(f"Восстановлен проект: {file_path} (UID: {uid})")
-                        else:
-                            # Проект уже активен - обновляем путь
-                            existing_project.path = file_path
-                            existing_project.modified_date = datetime.now()
-                            logging.info(f"Обновлен путь активного проекта: {file_path} (UID: {uid})")
-                    else:
-                        # Создаем новый проект
-                        db.create_project(file_path, uid)
-                        logging.info(f"Добавлен новый проект в БД: {file_path} (UID: {uid})")
+                    # Создаем новый проект
+                    db.create_project(file_path, uid)
+                    logging.info(f"Добавлен новый проект в БД: {file_path} (UID: {uid})")
                     
             except Exception as e:
                 logging.exception(f"Ошибка при обработке UID только в файлах {uid}: {e}")
@@ -496,8 +462,8 @@ class Database:
 
     @db_session
     def get_all_projects(self) -> dict[str: str]:
-        """Возвращает только активные проекты (статус 'active')."""
-        projects = self.models.Project.select(lambda p: p.status == "active")[:]
+        """Возвращает проекты."""
+        projects = self.models.Project.select()[:]
         result = {}
         for project in projects:
             result[project.path] = project.uid
@@ -505,32 +471,9 @@ class Database:
 
     @db_session
     def create_project(self, path: Path | str, uid: str) -> Any:
-        path = str(path)
-        name = path.split("/")[-1]
-        path = path[:-len(name)]
-        project = self.models.Project(name=name, path=path, uid=uid)
+        path = Path(path)
+        project = self.models.Project(name=path.name, path=str(path), uid=uid)
         return project
-
-    @db_session
-    def update_project_uid(self, path: str, uid: str) -> None:
-        """Обновляет UID проекта в базе данных."""
-        project = self.models.Project.get(path=path)
-        if project:
-            project.uid = uid
-            project.modified_date = datetime.now()
-            logging.debug(f"Обновлен UID проекта {path}: {uid}")
-        else:
-            logging.warning(f"Проект {path} не найден в БД для обновления UID")
-
-    @db_session
-    def delete_project(self, path: str) -> None:
-        """Удаляет проект из базы данных."""
-        project = self.models.Project.get(path=path)
-        if project:
-            project.delete()
-            logging.debug(f"Проект {path} удален из БД")
-        else:
-            logging.warning(f"Проект {path} не найден в БД для удаления")
 
     @db_session
     def get_project_by_uid(self, uid: str) -> Any:
@@ -547,16 +490,6 @@ class Database:
             logging.debug(f"Обновлен путь проекта {uid}: {new_path}")
         else:
             logging.warning(f"Проект с UID {uid} не найден в БД для обновления пути")
-
-    @db_session
-    def delete_project_by_uid(self, uid: str) -> None:
-        """Удаляет проект из базы данных по UID."""
-        project = self.models.Project.get(uid=uid)
-        if project:
-            project.delete()
-            logging.debug(f"Проект с UID {uid} удален из БД")
-        else:
-            logging.warning(f"Проект с UID {uid} не найден в БД для удаления")
 
     @db_session
     def mark_project_as_deleted(self, uid: str) -> None:
