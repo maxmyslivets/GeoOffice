@@ -126,14 +126,14 @@ class ProjectService:
         :return: Проект к папке проекта
         :rtype: Project
         """
-        projects_dir = self.app_settings.paths.get_projects_pathdir()
+        projects_dir = Path(self.app_settings.paths.file_server) / self.database_service.get_settings_project_dir()
         if exists:
             project_path = projects_dir / path
             project_name = project_path.name
         else:
             project_path = projects_dir / path / name
             project_name = name
-            template_dir = projects_dir / self.app_settings.paths.project_template_dir
+            template_dir = projects_dir / self.database_service.get_settings_project_dir()
             shutil.copytree(template_dir, project_path)
         geo_office_project_filepath = project_path / ".geo_office_project"
         uid = self._set_uuid(geo_office_project_filepath)

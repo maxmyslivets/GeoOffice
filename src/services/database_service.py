@@ -145,3 +145,9 @@ class DatabaseService:
     def get_project_from_uid(self, uid: str) -> Any:
         logger.debug(f"Получение проекта по уникальному идентификатору: uid={uid}")
         return self.models.Project.get(uid=uid)
+
+    @log_exception
+    @db_session
+    def get_settings_project_dir(self) -> str:
+        logger.debug(f"Получение пути расположения проектов")
+        return self.models.Settings[1].project_dir

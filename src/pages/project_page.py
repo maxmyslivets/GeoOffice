@@ -66,7 +66,7 @@ class ProjectPage(BasePage):
 
     def create_link_section(self):
         project_path = self.project.get_path(
-            Path(self.app.settings.paths.file_server) / self.app.settings.paths.projects_folder)
+            Path(self.app.settings.paths.file_server) / self.project_service.database_service.get_settings_project_dir())
         try:
             links = [[name, Path(project_path) / name]
                      for name in os.listdir(project_path) if (Path(project_path) / name).is_dir()]

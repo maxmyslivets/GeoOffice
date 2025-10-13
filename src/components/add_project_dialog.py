@@ -112,7 +112,7 @@ class AddProjectDialog:
             self.path_project_text_field.error_text = None
             try:
                 self.path = Path(self.path_project_text_field.value).relative_to(
-                    self.app.settings.paths.get_projects_pathdir())
+                    Path(self.app.settings.paths.file_server) / self.project_service.database_service.get_settings_project_dir())
             except ValueError:
                 self.path_project_text_field.error_text = "Выберите расположение в папке объектов на файловом сервере"
         else:

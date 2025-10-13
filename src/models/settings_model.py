@@ -23,18 +23,12 @@ class Paths:
     """
     Модель настроек путей.
     :param file_server: Путь к файловому серверу
-    :param projects_folder: Путь к папке проектов (относительно файлового сервера)
     :param favorite_folders: Пути к закрепленным папкам
     :param database_path: Путь к базе данных проектов (относительно файлового сервера)
     """
     file_server: str
-    projects_folder: str
-    project_template_dir: str
     favorite_folders: list[list[str]]
     database_path: str
-
-    def get_projects_pathdir(self) -> Path:
-        return Path(self.file_server) / self.projects_folder
 
 
 @dataclass
@@ -88,9 +82,7 @@ class Settings:
             top=10,
         )
         self.paths = Paths(
-            file_server="...",
-            projects_folder='...',
-            project_template_dir='...',
+            file_server=r"\\server-r\IGI",
             favorite_folders=[
                 ['Запись', 'D:\\Запись'],
                 ['Scan', 'D:\\scan'],

@@ -28,31 +28,6 @@ class SettingsPage(BasePage):
         self.path_file_server_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24, tooltip="Выбрать путь",
                                                      on_click=lambda e: self._select_dir_action(
                                                          self.path_file_server_text_field, 'file_server'))
-        # Выбор папки проектов
-        self.path_projects_folder_text_field = ft.TextField(label="Папка объектов",
-                                                            value=f"{self.app.settings.paths.file_server}\\"
-                                                                  f"{self.app.settings.paths.projects_folder}",
-                                                            on_change=lambda e: self._reset_text_error(
-                                                                self.path_projects_folder_text_field),
-                                                            expand=True)
-        self.path_projects_folder_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24,
-                                                         tooltip="Выбрать путь",
-                                                         on_click=lambda e: self._select_dir_action(
-                                                             self.path_projects_folder_text_field,
-                                                             'projects_folder'))
-        # Выбор папки шаблона проекта
-        self.path_template_projects_folder_text_field = ft.TextField(label="Папка шаблона объекта",
-                                                                     value=f"{self.app.settings.paths.file_server}\\"
-                                                                           f"{self.app.settings.paths.projects_folder}\\"
-                                                                           f"{self.app.settings.paths.project_template_dir}",
-                                                                     on_change=lambda e: self._reset_text_error(
-                                                                         self.path_template_projects_folder_text_field),
-                                                                     expand=True)
-        self.path_template_projects_folder_button = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, icon_size=24,
-                                                                  tooltip="Выбрать путь",
-                                                                  on_click=lambda e: self._select_dir_action(
-                                                                      self.path_template_projects_folder_text_field,
-                                                                      'project_template_dir'))
         # Подключение базы данных
         self.path_database_text_field = ft.TextField(label="Путь к базе данных",
                                                      value=self.app.settings.paths.database_path,
@@ -137,8 +112,6 @@ class SettingsPage(BasePage):
             ft.Column([
                 ft.Text("Файловый сервер", size=18, weight=ft.FontWeight.BOLD),
                 ft.Row([self.path_file_server_text_field, self.path_file_server_button]),
-                ft.Row([self.path_projects_folder_text_field, self.path_projects_folder_button]),
-                ft.Row([self.path_template_projects_folder_text_field, self.path_template_projects_folder_button]),
             ]),
 
             ft.Column([
@@ -164,8 +137,6 @@ class SettingsPage(BasePage):
         self.app.database_service = DatabaseService(self.app.settings.paths.database_path)
 
         self.path_file_server_text_field.value = self.app.settings.paths.file_server
-        self.path_projects_folder_text_field.value = (f"{self.app.settings.paths.file_server}\\"
-                                                      f"{self.app.settings.paths.projects_folder}")
         self.path_database_text_field.value = self.app.settings.paths.database_path
 
         self.dark_mode_switch.value = False
@@ -190,30 +161,6 @@ class SettingsPage(BasePage):
             self.app.save_settings()
         else:
             self.path_file_server_text_field.error_text = "Неверный путь"
-
-        if check_dir(self.path_projects_folder_text_field.value):
-            if self.path_projects_folder_text_field.value.startswith(self.path_file_server_text_field.value):
-                self.path_projects_folder_text_field.error_text = None
-                self.app.settings.paths.projects_folder = self.path_projects_folder_text_field.value[
-                                                          len(self.path_file_server_text_field.value) + 1:]
-                self.app.save_settings()
-            else:
-                self.path_projects_folder_text_field.error_text = ("Папка не находится на файловом сервере либо "
-                                                                   "неверно указано расположение файлового сервера")
-        else:
-            self.path_projects_folder_text_field.error_text = "Неверный путь"
-
-        if check_dir(self.path_template_projects_folder_text_field.value):
-            if self.path_template_projects_folder_text_field.value.startswith(self.path_projects_folder_text_field.value):
-                self.path_template_projects_folder_text_field.error_text = None
-                self.app.settings.paths.project_template_dir = self.path_template_projects_folder_text_field.value[
-                                                               len(self.path_projects_folder_text_field.value) + 1:]
-                self.app.save_settings()
-            else:
-                self.path_template_projects_folder_text_field.error_text = ("Папка не находится на файловом сервере либо "
-                                                                   "неверно указано расположение файлового сервера")
-        else:
-            self.path_template_projects_folder_text_field.error_text = "Неверный путь"
 
         if check_file(self.path_database_text_field.value):
             self.path_database_text_field.error_text = None
