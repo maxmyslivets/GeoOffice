@@ -195,41 +195,157 @@ class GeoOfficeProjectSyncTrayApp:
         except ValueError:
             return False
 
+    def _add_uid_to_file(self, path: str, uid: str) -> None:
+        """Добавляет UID в файл .geo_office_project."""
+        try:
+            # Получаем путь к папке проектов из настроек БД
+            db = Database(Path(self.server_path) / self.database_path)
+            project_dir = db.get_project_dir()
+            project_path = Path(self.server_path) / project_dir / path / ".geo_office_project"
+            
+            with project_path.open("w", encoding="utf-8") as f:
+                f.write(uid)
+            logging.debug(f"UID {uid} записан в файл {project_path}")
+        except Exception as e:
+            logging.exception(f"Ошибка при записи UID в файл {path}: {e}")
+            raise
+
+    def _get_uid_from_file(self, path: str) -> str:
+        """Получает UID из файла .geo_office_project."""
+        try:
+            # Получаем путь к папке проектов из настроек БД
+            db = Database(Path(self.server_path) / self.database_path)
+            project_dir = db.get_project_dir()
+            project_path = Path(self.server_path) / project_dir / path / ".geo_office_project"
+            
+            if project_path.exists():
+                with project_path.open("r", encoding="utf-8") as f:
+                    uid = f.read().strip()
+                return uid
+            return ""
+        except Exception as e:
+            logging.exception(f"Ошибка при чтении UID из файла {path}: {e}")
+            return ""
+
+
     def _sync_projects(self, in_database: dict[str: str], in_files: dict[str: str]) -> None:
-
-        for path in set(in_database.keys()) | set(in_files.keys()):
-
-            if path in set(in_database.keys()) & set(in_files.keys()):
-                uid_db = self._is_uid(in_database[path])
-                uid_files = self._is_uid(in_files[path])
-                if (not uid_db) & (not uid_files):
-                    # TODO: добавить uid в файл и в бд
-                    continue
-                elif (not uid_db) & uid_files:
-                    # TODO: ...
-                    continue
-                elif uid_db & (not uid_files):
-                    # TODO: ...
-                    continue
-                else:
-                    continue
-
-            elif path in in_database:
-                uid_db = self._is_uid(in_database[path])
-                if uid_db:
-                    # TODO: ...
-                    continue
-                else:
-                    # TODO: ...
-                    continue
-
-            elif path in in_files:
-                uid_files = self._is_uid(in_files[path])
-                if uid_files:
-                    # TODO: ...
-                    continue
-                else:
-                    # TODO: ...
+        """
+        Синхронизирует проекты между базой данных и файловой системой на основе UID.
+        
+        Новая логика синхронизации:
+        1. Собираем все UID из БД и файлов
+        2. Для каждого UID проверяем:
+           - Если UID есть в БД и в файлах - проверяем соответствие путей
+           - Если UID есть только в БД - ищем файл по UID, если не найден - удаляем из БД
+           - Если UID есть только в файлах - добавляем в БД
+        3. Для файлов без UID - создаем новый проект с новым UID
+        """
+        db = Database(Path(self.server_path) / self.database_path)
+        
+        # Собираем все UID из БД и файлов
+        db_uids = set()
+        file_uids = set()
+        
+        # UID из БД
+        for path, uid in in_database.items():
+            if self._is_uid(uid):
+                db_uids.add(uid)
+        
+        # UID из файлов
+        for path, uid in in_files.items():
+            if self._is_uid(uid):
+                file_uids.add(uid)
+        
+        # Обрабатываем UID, которые есть и в БД, и в файлах
+        common_uids = db_uids & file_uids
+        for uid in common_uids:
+            try:
+                # Находим путь в БД и в файлах для этого UID
+                db_path = None
+                file_path = None
+                
+                for path, path_uid in in_database.items():
+                    if path_uid == uid:
+                        db_path = path
+                        break
+                
+                for path, path_uid in in_files.items():
+                    if path_uid == uid:
+                        file_path = path
+                        break
+                
+                if db_path and file_path:
+                    if db_path != file_path:
+                        # Пути не совпадают - обновляем путь в БД
+                        db.update_project_path(uid, file_path)
+                        logging.info(f"Обновлен путь проекта {uid}: {db_path} -> {file_path}")
+                    else:
+                        # Всё синхронизировано
+                        logging.debug(f"Проект {uid} уже синхронизирован")
+                        
+            except Exception as e:
+                logging.exception(f"Ошибка при синхронизации UID {uid}: {e}")
+                continue
+        
+        # Обрабатываем UID, которые есть только в БД
+        db_only_uids = db_uids - file_uids
+        for uid in db_only_uids:
+            try:
+                # UID есть только в БД - помечаем как удаленный (файла нет в доступных)
+                db.mark_project_as_deleted(uid)
+                logging.info(f"Проект помечен как удаленный (файл не найден): {uid}")
+                    
+            except Exception as e:
+                logging.exception(f"Ошибка при обработке UID только в БД {uid}: {e}")
+                continue
+        
+        # Обрабатываем UID, которые есть только в файлах
+        file_only_uids = file_uids - db_uids
+        for uid in file_only_uids:
+            try:
+                # Находим путь к файлу
+                file_path = None
+                for path, path_uid in in_files.items():
+                    if path_uid == uid:
+                        file_path = path
+                        break
+                
+                if file_path:
+                    # Проверяем, есть ли проект с таким UID в БД (возможно, помечен как удаленный)
+                    existing_project = db.get_project_by_uid(uid)
+                    if existing_project:
+                        if existing_project.status == "deleted":
+                            # Восстанавливаем проект
+                            existing_project.status = "active"
+                            existing_project.path = file_path
+                            existing_project.modified_date = datetime.now()
+                            logging.info(f"Восстановлен проект: {file_path} (UID: {uid})")
+                        else:
+                            # Проект уже активен - обновляем путь
+                            existing_project.path = file_path
+                            existing_project.modified_date = datetime.now()
+                            logging.info(f"Обновлен путь активного проекта: {file_path} (UID: {uid})")
+                    else:
+                        # Создаем новый проект
+                        db.create_project(file_path, uid)
+                        logging.info(f"Добавлен новый проект в БД: {file_path} (UID: {uid})")
+                    
+            except Exception as e:
+                logging.exception(f"Ошибка при обработке UID только в файлах {uid}: {e}")
+                continue
+        
+        # Обрабатываем файлы без UID
+        for path, uid in in_files.items():
+            if not self._is_uid(uid):
+                try:
+                    # Создаем новый UID и добавляем в файл и БД
+                    new_uid = str(uuid.uuid4())
+                    self._add_uid_to_file(path, new_uid)
+                    db.create_project(path, new_uid)
+                    logging.info(f"Создан новый проект: {path} (UID: {new_uid})")
+                    
+                except Exception as e:
+                    logging.exception(f"Ошибка при создании нового проекта {path}: {e}")
                     continue
 
     # --- Интерфейс ----------------------------------------------------------
@@ -345,6 +461,7 @@ class Database:
             name = Required(str)  # Название проекта
             path = Required(str)    # Путь к папке проекта
             uid = Required(str)     # Уникальный идентификатор
+            status = Required(str, default="active")  # Статус проекта: active, deleted
             created_date = Required(datetime, default=datetime.now)
             modified_date = Required(datetime, default=datetime.now)
 
@@ -379,7 +496,8 @@ class Database:
 
     @db_session
     def get_all_projects(self) -> dict[str: str]:
-        projects = self.models.Project.select()[:]
+        """Возвращает только активные проекты (статус 'active')."""
+        projects = self.models.Project.select(lambda p: p.status == "active")[:]
         result = {}
         for project in projects:
             result[project.path] = project.uid
@@ -392,6 +510,64 @@ class Database:
         path = path[:-len(name)]
         project = self.models.Project(name=name, path=path, uid=uid)
         return project
+
+    @db_session
+    def update_project_uid(self, path: str, uid: str) -> None:
+        """Обновляет UID проекта в базе данных."""
+        project = self.models.Project.get(path=path)
+        if project:
+            project.uid = uid
+            project.modified_date = datetime.now()
+            logging.debug(f"Обновлен UID проекта {path}: {uid}")
+        else:
+            logging.warning(f"Проект {path} не найден в БД для обновления UID")
+
+    @db_session
+    def delete_project(self, path: str) -> None:
+        """Удаляет проект из базы данных."""
+        project = self.models.Project.get(path=path)
+        if project:
+            project.delete()
+            logging.debug(f"Проект {path} удален из БД")
+        else:
+            logging.warning(f"Проект {path} не найден в БД для удаления")
+
+    @db_session
+    def get_project_by_uid(self, uid: str) -> Any:
+        """Находит проект в БД по UID."""
+        return self.models.Project.get(uid=uid)
+
+    @db_session
+    def update_project_path(self, uid: str, new_path: str) -> None:
+        """Обновляет путь проекта в базе данных по UID."""
+        project = self.models.Project.get(uid=uid)
+        if project:
+            project.path = new_path
+            project.modified_date = datetime.now()
+            logging.debug(f"Обновлен путь проекта {uid}: {new_path}")
+        else:
+            logging.warning(f"Проект с UID {uid} не найден в БД для обновления пути")
+
+    @db_session
+    def delete_project_by_uid(self, uid: str) -> None:
+        """Удаляет проект из базы данных по UID."""
+        project = self.models.Project.get(uid=uid)
+        if project:
+            project.delete()
+            logging.debug(f"Проект с UID {uid} удален из БД")
+        else:
+            logging.warning(f"Проект с UID {uid} не найден в БД для удаления")
+
+    @db_session
+    def mark_project_as_deleted(self, uid: str) -> None:
+        """Помечает проект как удаленный (устанавливает статус 'deleted')."""
+        project = self.models.Project.get(uid=uid)
+        if project:
+            project.status = "deleted"
+            project.modified_date = datetime.now()
+            logging.debug(f"Проект с UID {uid} помечен как удаленный")
+        else:
+            logging.warning(f"Проект с UID {uid} не найден в БД для пометки как удаленный")
 
 
 # --- Точка входа -----------------------------------------------------------
