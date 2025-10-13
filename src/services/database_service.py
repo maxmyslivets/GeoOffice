@@ -144,7 +144,4 @@ class DatabaseService:
     @db_session
     def get_project_from_uid(self, uid: str) -> Any:
         logger.debug(f"Получение проекта по уникальному идентификатору: uid={uid}")
-        try:
-            return self.models.Project.select_by_sql("SELECT * FROM Объекты WHERE uid = $uid")[0]
-        except IndexError:
-            return None
+        return self.models.Project.get(uid=uid)

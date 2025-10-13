@@ -23,14 +23,14 @@ class Database:
             """
             _table_ = "Объекты"
             id = PrimaryKey(int, auto=True)
-            number = Optional(str, nullable=True)  # Номер проекта
+            number = Optional(str, nullable=True, default=None)  # Номер проекта
             name = Required(str)  # Название проекта
-            customer = Optional(str, nullable=True)  # Заказчик
-            chief_engineer = Optional(str, nullable=True)  # Главный инженер проекта
-            chief_architect = Optional(str, nullable=True)  # Главный архитектор проекта
-            head_of_the_sanitary = Optional(str, nullable=True)  # Начальник санитарно-технического отдела
-            status = Optional(str, nullable=True)  # Статус проекта (active, completed, archived)
-            address = Optional(str, nullable=True)  # Адрес объекта
+            customer = Optional(str, nullable=True, default=None)  # Заказчик
+            chief_engineer = Optional(str, nullable=True, default=None)  # Главный инженер проекта
+            chief_architect = Optional(str, nullable=True, default=None)  # Главный архитектор проекта
+            head_of_the_sanitary = Optional(str, nullable=True, default=None)  # Начальник санитарно-технического отдела
+            status = Optional(str, nullable=True, default="active")  # Статус проекта (active, completed, archived)
+            address = Optional(str, nullable=True, default=None)  # Адрес объекта
             path = Required(str)    # Путь к папке проекта
             uid = Required(str)     # Уникальный идентификатор
             created_date = Required(datetime, default=datetime.now)
