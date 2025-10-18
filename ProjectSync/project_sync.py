@@ -15,6 +15,10 @@ import os
 from pathlib import Path
 import threading
 import json
+import sys
+
+# Импортируем сервис мониторинга файлов
+from file_watch_service import FileWatchService
 
 
 class GeoOfficeProjectSyncTrayApp:
@@ -27,6 +31,10 @@ class GeoOfficeProjectSyncTrayApp:
         self.sync_period = 5  # временно фиксированное значение, позже будет читаться из базы
         self._sync_thread = None
         self._stop_event = threading.Event()
+        
+        # Сервис мониторинга файловой системы
+        self.file_watch_service = None
+        self._watch_enabled = True  # Включен ли мониторинг файлов
 
         # Настройка путей
         self.documents_path = Path(os.path.expanduser("~/Documents"))
@@ -79,9 +87,13 @@ class GeoOfficeProjectSyncTrayApp:
     # --- Методы работы с настройками ---------------------------------------
 
     def _save_settings(self):
-        """Сохраняет настройки (только путь к серверу) в JSON файл."""
+        """Сохраняет настройки в JSON файл."""
         try:
-            data = {"server_path": self.server_path, "database_path": self.database_path}
+            data = {
+                "server_path": self.server_path, 
+                "database_path": self.database_path,
+                "watch_enabled": self._watch_enabled
+            }
             with open(self.settings_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             logging.info(f"Настройки сохранены в {self.settings_file}")
@@ -96,7 +108,8 @@ class GeoOfficeProjectSyncTrayApp:
                     data = json.load(f)
                 self.server_path = data.get("server_path", "")
                 self.database_path = data.get("database_path", "")
-                logging.info(f"Настройки загружены: сервер = {self.server_path or 'не задан'}")
+                self._watch_enabled = data.get("watch_enabled", True)
+                logging.info(f"Настройки загружены: сервер = {self.server_path or 'не задан'}, мониторинг = {self._watch_enabled}")
             else:
                 logging.info("Файл настроек не найден, используется конфигурация по умолчанию.")
         except Exception as e:
@@ -111,6 +124,10 @@ class GeoOfficeProjectSyncTrayApp:
                 self.is_running = True
                 self._stop_event.clear()
                 self._start_sync_loop()
+                
+                # Запускаем мониторинг файлов
+                self._setup_file_watch()
+                
                 self._update_menu()
                 self.icon.title = 'GeoOffice Синхронизация проектов запущена'
         except Exception as e:
@@ -122,6 +139,10 @@ class GeoOfficeProjectSyncTrayApp:
                 logging.info("Синхронизация остановлена пользователем.")
                 self.is_running = False
                 self._stop_event.set()
+                
+                # Останавливаем мониторинг файлов
+                self._stop_file_watch()
+                
                 self._update_menu()
                 self.icon.title = 'GeoOffice Синхронизация проектов остановлена'
         except Exception as e:
@@ -138,6 +159,10 @@ class GeoOfficeProjectSyncTrayApp:
         try:
             logging.info("Выход из приложения...")
             self._stop_event.set()
+            
+            # Останавливаем мониторинг файлов
+            self._stop_file_watch()
+            
             self.icon.stop()
         except Exception as e:
             logging.exception("Ошибка при выходе из приложения")
@@ -176,6 +201,164 @@ class GeoOfficeProjectSyncTrayApp:
                                             template_exc_path=db.get_template_dir())
         self._sync_projects(projects_from_db, projects_from_fs)
         logging.info("Синхронизация завершена успешно.")
+
+    def _handle_file_event(self, event_type: str, src_path: str, dest_path: str = None):
+        """
+        Обработка события файловой системы.
+        
+        :param event_type: Тип события (created, deleted, modified, moved)
+        :param src_path: Исходный путь файла
+        :param dest_path: Путь назначения (для события moved)
+        """
+        try:
+            logging.info(f"Обработка события файла {event_type}: {src_path}")
+            
+            # Выполняем быструю синхронизацию только для измененных файлов
+            if event_type in ['created', 'deleted', 'modified', 'moved']:
+                self._run_quick_sync(event_type, src_path, dest_path)
+                
+        except Exception as e:
+            logging.error(f"Ошибка при обработке события файла {src_path}: {e}")
+
+    def _run_quick_sync(self, event_type: str, src_path: str, dest_path: str = None):
+        """
+        Быстрая синхронизация для конкретного события файла.
+        
+        :param event_type: Тип события
+        :param src_path: Исходный путь
+        :param dest_path: Путь назначения
+        """
+        try:
+            if not self.server_path or not self.database_path:
+                return
+                
+            db = Database(Path(self.server_path) / self.database_path)
+            project_dir = Path(self.server_path) / db.get_project_dir()
+            
+            # Определяем путь относительно директории проектов
+            try:
+                rel_path = Path(src_path).relative_to(project_dir)
+            except ValueError:
+                # Файл не в директории проектов
+                return
+                
+            if event_type == 'created':
+                # Новый файл .geo_office_project
+                if Path(src_path).name == '.geo_office_project':
+                    self._handle_new_project_file(rel_path, db)
+                    
+            elif event_type == 'deleted':
+                # Удален файл .geo_office_project
+                if Path(src_path).name == '.geo_office_project':
+                    self._handle_deleted_project_file(rel_path, db)
+                    
+            elif event_type == 'moved':
+                # Перемещен файл .geo_office_project
+                if Path(src_path).name == '.geo_office_project' and dest_path:
+                    try:
+                        dest_rel_path = Path(dest_path).relative_to(project_dir)
+                        self._handle_moved_project_file(rel_path, dest_rel_path, db)
+                    except ValueError:
+                        # Файл перемещен за пределы директории проектов
+                        self._handle_deleted_project_file(rel_path, db)
+                        
+        except Exception as e:
+            logging.error(f"Ошибка при быстрой синхронизации: {e}")
+
+    def _handle_new_project_file(self, rel_path: Path, db: Database):
+        """Обработка нового файла проекта."""
+        try:
+            project_file = Path(self.server_path) / db.get_project_dir() / rel_path / ".geo_office_project"
+            if project_file.exists():
+                with project_file.open("r", encoding="utf-8") as f:
+                    uid = f.read().strip()
+                
+                if self._is_uid(uid):
+                    # Проверяем, есть ли уже проект с таким UID
+                    existing_project = db.get_project_by_uid(uid)
+                    if not existing_project:
+                        db.create_project(str(rel_path), uid)
+                        logging.info(f"Добавлен новый проект: {rel_path} (UID: {uid})")
+                    else:
+                        logging.debug(f"Проект с UID {uid} уже существует")
+                else:
+                    # Создаем новый UID
+                    new_uid = str(uuid.uuid4())
+                    self._add_uid_to_file(str(rel_path), new_uid)
+                    db.create_project(str(rel_path), new_uid)
+                    logging.info(f"Создан новый проект: {rel_path} (UID: {new_uid})")
+                    
+        except Exception as e:
+            logging.error(f"Ошибка при обработке нового файла проекта {rel_path}: {e}")
+
+    def _handle_deleted_project_file(self, rel_path: Path, db: Database):
+        """Обработка удаленного файла проекта."""
+        try:
+            # Ищем проект по пути
+            projects = db.get_all_projects()
+            for path, uid in projects.items():
+                if path == str(rel_path):
+                    db.mark_project_as_deleted(uid)
+                    logging.info(f"Проект помечен как удаленный: {rel_path} (UID: {uid})")
+                    break
+                    
+        except Exception as e:
+            logging.error(f"Ошибка при обработке удаленного файла проекта {rel_path}: {e}")
+
+    def _handle_moved_project_file(self, old_rel_path: Path, new_rel_path: Path, db: Database):
+        """Обработка перемещенного файла проекта."""
+        try:
+            # Ищем проект по старому пути
+            projects = db.get_all_projects()
+            for path, uid in projects.items():
+                if path == str(old_rel_path):
+                    db.update_project_path(uid, str(new_rel_path))
+                    logging.info(f"Обновлен путь проекта: {old_rel_path} -> {new_rel_path} (UID: {uid})")
+                    break
+                    
+        except Exception as e:
+            logging.error(f"Ошибка при обработке перемещенного файла проекта {old_rel_path}: {e}")
+
+    def _setup_file_watch(self):
+        """Настройка мониторинга файловой системы."""
+        try:
+            if not self._watch_enabled or not self.server_path or not self.database_path:
+                return
+                
+            db = Database(Path(self.server_path) / self.database_path)
+            project_dir = Path(self.server_path) / db.get_project_dir()
+            
+            if not project_dir.exists():
+                logging.warning(f"Директория проектов не существует: {project_dir}")
+                return
+                
+            # Создаем сервис мониторинга
+            self.file_watch_service = FileWatchService(
+                watch_paths={str(project_dir)},
+                sync_callback=self._handle_file_event,
+                debounce_time=2.0
+            )
+            
+            # Запускаем мониторинг
+            if self.file_watch_service.start():
+                logging.info(f"Мониторинг файлов запущен для: {project_dir}")
+            else:
+                logging.error("Не удалось запустить мониторинг файлов")
+                
+        except Exception as e:
+            logging.error(f"Ошибка при настройке мониторинга файлов: {e}")
+
+    def _stop_file_watch(self):
+        """Остановка мониторинга файловой системы."""
+        try:
+            if self.file_watch_service:
+                if self.file_watch_service.stop():
+                    logging.info("Мониторинг файлов остановлен")
+                else:
+                    logging.error("Не удалось остановить мониторинг файлов")
+                self.file_watch_service = None
+        except Exception as e:
+            logging.error(f"Ошибка при остановке мониторинга файлов: {e}")
 
     def _scan_files(self, path: Path|str, template_exc_path: Path|str) -> dict[str, str]:
         result = {}
@@ -348,7 +531,7 @@ class GeoOfficeProjectSyncTrayApp:
 
         settings_win = tk.Tk()
         settings_win.title("Настройки синхронизации")
-        settings_win.geometry("400x180")
+        settings_win.geometry("400x220")
         settings_win.resizable(False, False)
 
         tk.Label(settings_win, text="Путь к файловому серверу:").pack(anchor='w', padx=10, pady=(10, 0))
@@ -358,10 +541,35 @@ class GeoOfficeProjectSyncTrayApp:
         tk.Entry(path_frame, textvariable=server_var).pack(side='left', fill='x', expand=True)
         ttk.Button(path_frame, text="Обзор...", command=browse_folder).pack(side='right', padx=5)
 
-        # Период синхронизации
+        # Имя базы данных
         tk.Label(settings_win, text="Имя базы данных:").pack(anchor='w', padx=10, pady=(10, 0))
         database_var = tk.StringVar(value=str(self.database_path))
         ttk.Entry(settings_win, textvariable=database_var, width=30).pack(padx=10, anchor='w')
+
+        # Мониторинг файлов
+        watch_var = tk.BooleanVar(value=self._watch_enabled)
+        watch_check = ttk.Checkbutton(
+            settings_win, 
+            text="Включить мониторинг файлов в реальном времени", 
+            variable=watch_var
+        )
+        watch_check.pack(anchor='w', padx=10, pady=(10, 0))
+
+        def save_settings():
+            try:
+                self.server_path = server_var.get().strip()
+                self.database_path = database_var.get().strip()
+                self._watch_enabled = watch_var.get()
+                self._save_settings()
+                
+                # Перезапускаем мониторинг файлов если он был изменен
+                if self.is_running and self.file_watch_service:
+                    self._stop_file_watch()
+                    self._setup_file_watch()
+                
+                settings_win.destroy()
+            except Exception as e:
+                logging.exception("Ошибка при сохранении настроек")
 
         ttk.Button(settings_win, text="Сохранить", command=save_settings).pack(pady=20)
         settings_win.mainloop()
