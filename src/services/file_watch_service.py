@@ -176,7 +176,8 @@ class ProjectFileHandler(FileSystemEventHandler):
             logger.info(f"Удален файл: {event.src_path}")
             self._debounce_event('deleted', event.src_path)
         else:
-            file_monitor_logger.debug(f"IGNORED_DELETE: {event.src_path}")
+            if LOGGING_SETTINGS.get('log_ignored_events', False):
+                file_monitor_logger.debug(f"IGNORED_DELETE: {event.src_path}")
             logger.debug(f"Игнорировано удаление файла: {event.src_path}")
 
     def on_modified(self, event):
@@ -186,7 +187,8 @@ class ProjectFileHandler(FileSystemEventHandler):
             logger.info(f"Изменен файл: {event.src_path}")
             self._debounce_event('modified', event.src_path)
         else:
-            file_monitor_logger.debug(f"IGNORED_MODIFY: {event.src_path}")
+            if LOGGING_SETTINGS.get('log_ignored_events', False):
+                file_monitor_logger.debug(f"IGNORED_MODIFY: {event.src_path}")
             logger.debug(f"Игнорировано изменение файла: {event.src_path}")
 
     def on_moved(self, event):
@@ -196,7 +198,8 @@ class ProjectFileHandler(FileSystemEventHandler):
             logger.info(f"Перемещен файл: {event.src_path} -> {event.dest_path}")
             self._debounce_event('moved', event.src_path, event.dest_path)
         else:
-            file_monitor_logger.debug(f"IGNORED_MOVE: {event.src_path} -> {event.dest_path}")
+            if LOGGING_SETTINGS.get('log_ignored_events', False):
+                file_monitor_logger.debug(f"IGNORED_MOVE: {event.src_path} -> {event.dest_path}")
             logger.debug(f"Игнорировано перемещение файла: {event.src_path} -> {event.dest_path}")
 
 
@@ -248,11 +251,13 @@ class FileWatchService:
         try:
             # Проверяем ограничение скорости
             if not self._check_rate_limit():
-                file_monitor_logger.warning(f"RATE_LIMIT_EXCEEDED: {event_type}: {src_path}")
+                if LOGGING_SETTINGS.get('log_rate_limiting', True):
+                    file_monitor_logger.warning(f"RATE_LIMIT_EXCEEDED: {event_type}: {src_path}")
                 logger.debug(f"Событие пропущено из-за ограничения скорости: {event_type}: {src_path}")
                 return
                 
-            file_monitor_logger.info(f"PROCESSING_EVENT: {event_type}: {src_path}")
+            if LOGGING_SETTINGS.get('log_file_events', True):
+                file_monitor_logger.info(f"PROCESSING_EVENT: {event_type}: {src_path}")
             logger.info(f"Обработка события {event_type}: {src_path}")
             
             # Вызываем callback для синхронизации
@@ -260,7 +265,8 @@ class FileWatchService:
             self.sync_callback(event_type, src_path, dest_path)
             processing_time = time.time() - start_time
             
-            file_monitor_logger.info(f"EVENT_PROCESSED: {event_type}: {src_path} (took {processing_time:.3f}s)")
+            if LOGGING_SETTINGS.get('log_performance_stats', True):
+                file_monitor_logger.info(f"EVENT_PROCESSED: {event_type}: {src_path} (took {processing_time:.3f}s)")
             logger.debug(f"Событие обработано за {processing_time:.3f} секунд")
             
         except Exception as e:
