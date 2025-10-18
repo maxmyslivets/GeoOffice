@@ -15,6 +15,7 @@ dependencies = [
   "requests>=2.32.5",
   "screeninfo>=0.8.1",
   "uv>=0.8.13",
+  "watchdog>=6.0.0",
 ]
 
 [tool.flet]
