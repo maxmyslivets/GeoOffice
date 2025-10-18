@@ -17,9 +17,8 @@ import threading
 import json
 import sys
 
-# Добавляем путь к src для импорта сервисов
-sys.path.append(str(Path(__file__).parent.parent / "src"))
-from services.file_watch_service import FileWatchService
+# Импортируем сервис мониторинга файлов
+from file_watch_service import FileWatchService
 
 
 class GeoOfficeProjectSyncTrayApp:

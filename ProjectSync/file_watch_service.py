@@ -9,16 +9,12 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent
 from watchdog.utils.dirsnapshot import DirectorySnapshot, DirectorySnapshotDiff
 
-from utils.logger_config import get_logger, log_exception
-from config.file_watch_config import (
+from file_watch_config import (
     DEFAULT_IGNORED_PATTERNS, 
     PROJECT_FILE_EXTENSIONS, 
     DEFAULT_PERFORMANCE_SETTINGS,
     LOGGING_SETTINGS
 )
-
-logger = get_logger("services.file_watch_service")
-file_monitor_logger = get_logger("file_monitor")
 
 
 class ProjectFileHandler(FileSystemEventHandler):
@@ -49,7 +45,7 @@ class ProjectFileHandler(FileSystemEventHandler):
         self._timer: Optional[threading.Timer] = None
         self._last_processed: Dict[str, float] = {}  # Для предотвращения дублирования
         
-        logger.info(f"Инициализирован обработчик файловых событий с задержкой {debounce_time}с")
+        print(f"Инициализирован обработчик файловых событий с задержкой {debounce_time}с")
 
     def _is_project_file(self, file_path: str) -> bool:
         """Проверяет, является ли файл файлом проекта."""
@@ -156,51 +152,43 @@ class ProjectFileHandler(FileSystemEventHandler):
                     event_data.get('dest_path')
                 )
             except Exception as e:
-                logger.error(f"Ошибка при обработке события {event_data}: {e}")
+                print(f"Ошибка при обработке события {event_data}: {e}")
 
     def on_created(self, event):
         """Обработка события создания файла."""
         if self._should_process_event(event):
-            file_monitor_logger.info(f"FILE_CREATED: {event.src_path}")
-            logger.info(f"Создан файл: {event.src_path}")
+            print(f"Создан файл: {event.src_path}")
             self._debounce_event('created', event.src_path)
         else:
             if LOGGING_SETTINGS.get('log_ignored_events', False):
-                file_monitor_logger.debug(f"IGNORED_CREATE: {event.src_path}")
-            logger.debug(f"Игнорировано создание файла: {event.src_path}")
+                print(f"Игнорировано создание файла: {event.src_path}")
 
     def on_deleted(self, event):
         """Обработка события удаления файла."""
         if self._should_process_event(event):
-            file_monitor_logger.info(f"FILE_DELETED: {event.src_path}")
-            logger.info(f"Удален файл: {event.src_path}")
+            print(f"Удален файл: {event.src_path}")
             self._debounce_event('deleted', event.src_path)
         else:
             if LOGGING_SETTINGS.get('log_ignored_events', False):
-                file_monitor_logger.debug(f"IGNORED_DELETE: {event.src_path}")
-            logger.debug(f"Игнорировано удаление файла: {event.src_path}")
+                print(f"Игнорировано удаление файла: {event.src_path}")
 
     def on_modified(self, event):
         """Обработка события изменения файла."""
         if self._should_process_event(event):
-            file_monitor_logger.info(f"FILE_MODIFIED: {event.src_path}")
-            logger.info(f"Изменен файл: {event.src_path}")
+            print(f"Изменен файл: {event.src_path}")
             self._debounce_event('modified', event.src_path)
         else:
             if LOGGING_SETTINGS.get('log_ignored_events', False):
-                file_monitor_logger.debug(f"IGNORED_MODIFY: {event.src_path}")
-            logger.debug(f"Игнорировано изменение файла: {event.src_path}")
+                print(f"Игнорировано изменение файла: {event.src_path}")
 
     def on_moved(self, event):
         """Обработка события перемещения файла."""
         if self._should_process_event(event):
-            file_monitor_logger.info(f"FILE_MOVED: {event.src_path} -> {event.dest_path}")
-            logger.info(f"Перемещен файл: {event.src_path} -> {event.dest_path}")
+            print(f"Перемещен файл: {event.src_path} -> {event.dest_path}")
             self._debounce_event('moved', event.src_path, event.dest_path)
         else:
             if LOGGING_SETTINGS.get('log_ignored_events', False):
-                file_monitor_logger.debug(f"IGNORED_MOVE: {event.src_path} -> {event.dest_path}")
-            logger.debug(f"Игнорировано перемещение файла: {event.src_path} -> {event.dest_path}")
+                print(f"Игнорировано перемещение файла: {event.src_path} -> {event.dest_path}")
 
 
 class FileWatchService:
@@ -238,7 +226,7 @@ class FileWatchService:
         self._event_count = 0
         self._last_reset_time = time.time()
         
-        logger.info(f"Инициализирован сервис мониторинга файлов для путей: {watch_paths}")
+        print(f"Инициализирован сервис мониторинга файлов для путей: {watch_paths}")
 
     def _handle_file_event(self, event_type: str, src_path: str, dest_path: str = None):
         """
@@ -252,13 +240,11 @@ class FileWatchService:
             # Проверяем ограничение скорости
             if not self._check_rate_limit():
                 if LOGGING_SETTINGS.get('log_rate_limiting', True):
-                    file_monitor_logger.warning(f"RATE_LIMIT_EXCEEDED: {event_type}: {src_path}")
-                logger.debug(f"Событие пропущено из-за ограничения скорости: {event_type}: {src_path}")
+                    print(f"Событие пропущено из-за ограничения скорости: {event_type}: {src_path}")
                 return
                 
             if LOGGING_SETTINGS.get('log_file_events', True):
-                file_monitor_logger.info(f"PROCESSING_EVENT: {event_type}: {src_path}")
-            logger.info(f"Обработка события {event_type}: {src_path}")
+                print(f"Обработка события {event_type}: {src_path}")
             
             # Вызываем callback для синхронизации
             start_time = time.time()
@@ -266,12 +252,10 @@ class FileWatchService:
             processing_time = time.time() - start_time
             
             if LOGGING_SETTINGS.get('log_performance_stats', True):
-                file_monitor_logger.info(f"EVENT_PROCESSED: {event_type}: {src_path} (took {processing_time:.3f}s)")
-            logger.debug(f"Событие обработано за {processing_time:.3f} секунд")
+                print(f"Событие обработано за {processing_time:.3f} секунд")
             
         except Exception as e:
-            file_monitor_logger.error(f"EVENT_ERROR: {event_type}: {src_path}: {e}")
-            logger.error(f"Ошибка при обработке события файла {src_path}: {e}")
+            print(f"Ошибка при обработке события файла {src_path}: {e}")
 
     def _check_rate_limit(self) -> bool:
         """
@@ -293,7 +277,6 @@ class FileWatchService:
         self._event_count += 1
         return True
 
-    @log_exception
     def start(self) -> bool:
         """
         Запуск мониторинга файловой системы.
@@ -302,14 +285,14 @@ class FileWatchService:
         """
         with self._lock:
             if self.is_running:
-                logger.warning("Мониторинг файлов уже запущен")
+                print("Мониторинг файлов уже запущен")
                 return False
             
             try:
                 # Добавляем наблюдателей для каждого пути
                 for watch_path in self.watch_paths:
                     if not watch_path.exists():
-                        logger.warning(f"Путь для мониторинга не существует: {watch_path}")
+                        print(f"Путь для мониторинга не существует: {watch_path}")
                         continue
                         
                     self.observer.schedule(
@@ -317,21 +300,19 @@ class FileWatchService:
                         str(watch_path), 
                         recursive=True
                     )
-                    logger.info(f"Добавлен мониторинг для пути: {watch_path}")
+                    print(f"Добавлен мониторинг для пути: {watch_path}")
                 
                 # Запускаем наблюдатель
                 self.observer.start()
                 self.is_running = True
                 
-                file_monitor_logger.info(f"WATCH_SERVICE_STARTED: paths={[str(p) for p in self.watch_paths]}")
-                logger.info("Мониторинг файловой системы запущен")
+                print("Мониторинг файловой системы запущен")
                 return True
                 
             except Exception as e:
-                logger.error(f"Ошибка при запуске мониторинга: {e}")
+                print(f"Ошибка при запуске мониторинга: {e}")
                 return False
 
-    @log_exception
     def stop(self) -> bool:
         """
         Остановка мониторинга файловой системы.
@@ -340,7 +321,7 @@ class FileWatchService:
         """
         with self._lock:
             if not self.is_running:
-                logger.warning("Мониторинг файлов не запущен")
+                print("Мониторинг файлов не запущен")
                 return False
             
             try:
@@ -348,15 +329,13 @@ class FileWatchService:
                 self.observer.join(timeout=5.0)
                 self.is_running = False
                 
-                file_monitor_logger.info("WATCH_SERVICE_STOPPED")
-                logger.info("Мониторинг файловой системы остановлен")
+                print("Мониторинг файловой системы остановлен")
                 return True
                 
             except Exception as e:
-                logger.error(f"Ошибка при остановке мониторинга: {e}")
+                print(f"Ошибка при остановке мониторинга: {e}")
                 return False
 
-    @log_exception
     def add_watch_path(self, path: str) -> bool:
         """
         Добавление нового пути для мониторинга.
@@ -366,11 +345,11 @@ class FileWatchService:
         """
         watch_path = Path(path)
         if not watch_path.exists():
-            logger.warning(f"Путь для мониторинга не существует: {watch_path}")
+            print(f"Путь для мониторинга не существует: {watch_path}")
             return False
         
         if watch_path in self.watch_paths:
-            logger.warning(f"Путь уже отслеживается: {watch_path}")
+            print(f"Путь уже отслеживается: {watch_path}")
             return False
         
         try:
@@ -380,14 +359,13 @@ class FileWatchService:
                 recursive=True
             )
             self.watch_paths.add(watch_path)
-            logger.info(f"Добавлен мониторинг для пути: {watch_path}")
+            print(f"Добавлен мониторинг для пути: {watch_path}")
             return True
             
         except Exception as e:
-            logger.error(f"Ошибка при добавлении пути мониторинга {watch_path}: {e}")
+            print(f"Ошибка при добавлении пути мониторинга {watch_path}: {e}")
             return False
 
-    @log_exception
     def remove_watch_path(self, path: str) -> bool:
         """
         Удаление пути из мониторинга.
@@ -397,7 +375,7 @@ class FileWatchService:
         """
         watch_path = Path(path)
         if watch_path not in self.watch_paths:
-            logger.warning(f"Путь не отслеживается: {watch_path}")
+            print(f"Путь не отслеживается: {watch_path}")
             return False
         
         try:
@@ -408,11 +386,11 @@ class FileWatchService:
                     break
             
             self.watch_paths.discard(watch_path)
-            logger.info(f"Удален мониторинг для пути: {watch_path}")
+            print(f"Удален мониторинг для пути: {watch_path}")
             return True
             
         except Exception as e:
-            logger.error(f"Ошибка при удалении пути мониторинга {watch_path}: {e}")
+            print(f"Ошибка при удалении пути мониторинга {watch_path}: {e}")
             return False
 
     def get_status(self) -> Dict[str, Any]:
