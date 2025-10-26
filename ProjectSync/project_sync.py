@@ -1,3 +1,4 @@
+import traceback
 import uuid
 from datetime import datetime
 from typing import Any
@@ -9,12 +10,72 @@ from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 import tkinter as tk
 from tkinter import ttk, filedialog
+from tkinter import messagebox
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import threading
 import json
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
+
+PROJECT_FILE_NAME = ".geo_office_project"
+
+
+def show_error(message: str, title: str = "GeoOffice ProjectSync"):
+    """Показывает окно ошибки через Tkinter (работает из любого потока)."""
+    try:
+        root = tk.Tk()
+        root.withdraw()  # скрываем главное окно
+        messagebox.showerror(title, message)
+        root.destroy()
+    except Exception as e:
+        # fallback, если GUI недоступен (например, на сервере без дисплея)
+        print(f"[{title}] {message}\n(Не удалось показать окно: {e})")
+
+
+class GeoOfficeProjectHandler(FileSystemEventHandler):
+    def __init__(self, func_created, func_moved, func_deleted):
+        super().__init__()
+        self.func_created = func_created
+        self.func_moved = func_moved
+        self.func_deleted = func_deleted
+
+    def on_created(self, event):
+        if not event.is_directory and Path(event.src_path).name == PROJECT_FILE_NAME:
+            self.func_created(event.src_path)
+
+    def on_moved(self, event):
+        if not event.is_directory and Path(event.src_path).name == PROJECT_FILE_NAME:
+            self.func_moved(event.src_path)
+
+    def on_deleted(self, event):
+        self.func_deleted(event.src_path)
+
+
+def is_network_path(path: str | Path) -> bool:
+    """
+    Определяет, является ли путь сетевым.
+    Работает для Windows-путей вида \\SERVER\Share или дисков, смонтированных из сети.
+    """
+    path = str(path)
+    # Проверяем UNC-путь (начинается с двойного слеша)
+    if path.startswith(r"\\"):
+        return True
+    # Проверяем, не смонтирован ли диск из сети
+    drive = os.path.splitdrive(path)[0]
+    if drive:
+        try:
+            import ctypes
+            DRIVE_REMOTE = 4
+            drive_type = ctypes.windll.kernel32.GetDriveTypeW(f"{drive}\\")
+            return drive_type == DRIVE_REMOTE
+        except Exception:
+            pass
+    return False
 
 
 class GeoOfficeProjectSyncTrayApp:
@@ -24,7 +85,6 @@ class GeoOfficeProjectSyncTrayApp:
         self.is_running = False
         self.server_path = ""
         self.database_path = ""
-        self.sync_period = 5  # временно фиксированное значение, позже будет читаться из базы
         self._sync_thread = None
         self._stop_event = threading.Event()
 
@@ -40,10 +100,14 @@ class GeoOfficeProjectSyncTrayApp:
         # Загружаем сохранённые настройки (если есть)
         self._load_settings()
 
+        self._init_database()
+
+        self._init_observer()
+
         # Создаем иконку
         self.icon = pystray.Icon(
             name='GeoOffice_ProjectSync',
-            title='GeoOffice Синхронизация проектов',
+            title='GeoOffice Мониторинг остановлен',
             icon=self._draw_icon(),
             menu=self._create_menu()
         )
@@ -58,7 +122,7 @@ class GeoOfficeProjectSyncTrayApp:
             file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=5 * 1024 * 1024,  # 5 МБ
-                backupCount=5,             # до 5 архивов
+                backupCount=5,  # до 5 архивов
                 encoding='utf-8'
             )
 
@@ -72,14 +136,14 @@ class GeoOfficeProjectSyncTrayApp:
                 handlers=[file_handler, console_handler]
             )
 
-            logging.info("Приложение GeoOffice_ProjectSync запущено.")
         except Exception as e:
-            print(f"Ошибка при настройке логирования: {e}")
+            logging.exception(f"Ошибка при настройке логирования: {e}")
+            show_error(f"Ошибка при настройке логирования: {e}")
 
     # --- Методы работы с настройками ---------------------------------------
 
     def _save_settings(self):
-        """Сохраняет настройки (только путь к серверу) в JSON файл."""
+        """Сохраняет настройки в JSON файл."""
         try:
             data = {"server_path": self.server_path, "database_path": self.database_path}
             with open(self.settings_file, "w", encoding="utf-8") as f:
@@ -87,6 +151,7 @@ class GeoOfficeProjectSyncTrayApp:
             logging.info(f"Настройки сохранены в {self.settings_file}")
         except Exception as e:
             logging.exception("Ошибка при сохранении настроек")
+            show_error("Ошибка при сохранении настроек")
 
     def _load_settings(self):
         """Загружает настройки (если файл существует)."""
@@ -101,38 +166,137 @@ class GeoOfficeProjectSyncTrayApp:
                 logging.info("Файл настроек не найден, используется конфигурация по умолчанию.")
         except Exception as e:
             logging.exception("Ошибка при загрузке настроек")
+            show_error("Ошибка при загрузке настроек")
+
+    def _init_database(self):
+        self.db = Database(Path(self.server_path) / self.database_path)
+
+    def _init_observer(self):
+        """Инициализация наблюдателя (создаётся заново при каждом запуске)."""
+        try:
+            path = Path(self.server_path) / self.db.get_project_dir()
+            if not path.exists():
+                logging.warning(f"Папка для наблюдения не найдена: {path}")
+                return
+
+            network = is_network_path(path)
+            observer_class = PollingObserver if network else Observer
+            event_handler = GeoOfficeProjectHandler(self.watch_func_created, self.watch_func_moved,
+                                                    self.watch_func_deleted)
+
+            # Если старый наблюдатель существует — корректно завершаем
+            if hasattr(self, "observer") and self.observer is not None:
+                try:
+                    self.observer.stop()
+                    self.observer.join(timeout=2)
+                except Exception:
+                    pass
+
+            # Создаём новый наблюдатель
+            self.observer = observer_class()
+            self.observer.schedule(event_handler, str(path), recursive=True)
+            logging.info(f"Создан наблюдатель ({'сетевой' if network else 'локальный'}) для пути: {path}")
+
+        except Exception:
+            logging.exception("Ошибка при инициализации наблюдателя")
+            show_error(f"Ошибка при инициализации наблюдателя:\n{traceback.format_exc()}")
+
+    def watch_func_created(self, filepath):
+        print("new file:", filepath)
+        # TODO: Реализовать логику
+
+    def watch_func_moved(self, filepath):
+        print("moved file:", filepath)
+        # TODO: Реализовать логику
+
+    def watch_func_deleted(self, filepath):
+        if Path(filepath).name == PROJECT_FILE_NAME:
+            print("delete file:", filepath)
+        elif not Path(filepath).is_file():
+            print("delete dir:", filepath)
+            # TODO: Проверить часть пути от директории объектов до удаляемой на совпадение с частью пути из БД
+            pass
+        else:
+            pass
 
     # --- Методы действий ----------------------------------------------------
 
-    def start_action(self, icon, menu_item):
-        try:
-            if not self.is_running:
-                logging.info(f"Синхронизация запущена (сервер: {self.server_path or 'не задан'}, период: {self.sync_period} мин)")
-                self.is_running = True
-                self._stop_event.clear()
-                self._start_sync_loop()
-                self._update_menu()
-                self.icon.title = 'GeoOffice Синхронизация проектов запущена'
-        except Exception as e:
-            logging.exception("Ошибка при запуске синхронизации")
-
-    def stop_action(self, icon, menu_item):
+    def start_action(self, icon=None, menu_item=None):
+        """Запускает мониторинг файловой системы в отдельном потоке."""
         try:
             if self.is_running:
-                logging.info("Синхронизация остановлена пользователем.")
-                self.is_running = False
-                self._stop_event.set()
-                self._update_menu()
-                self.icon.title = 'GeoOffice Синхронизация проектов остановлена'
-        except Exception as e:
-            logging.exception("Ошибка при остановке синхронизации")
+                logging.info("Мониторинг уже запущен.")
+                return
+
+            if not self.server_path:
+                show_error("Не указан путь к серверу. Откройте настройки и задайте путь.")
+                return
+
+            # Каждый запуск создаёт новый observer
+            self._init_observer()
+
+            def _start_observer():
+                try:
+                    if not self.observer:
+                        logging.error("Не удалось создать наблюдатель — запуск отменён.")
+                        return
+                    logging.info(f"Запуск наблюдателя за {self.server_path}")
+                    self.observer.start()
+                    self.is_running = True
+                    self.icon.title = 'GeoOffice Мониторинг запущен'
+                    self._update_menu()
+                except RuntimeError as re:
+                    # Этот случай как раз при попытке повторного запуска потока
+                    logging.warning(f"Попытка повторного запуска observer: {re}")
+                    self._init_observer()
+                    self.observer.start()
+                except Exception:
+                    logging.exception("Ошибка при запуске наблюдателя")
+                    show_error(f"Ошибка при запуске наблюдателя:\n{traceback.format_exc()}")
+
+            threading.Thread(target=_start_observer, daemon=True).start()
+
+        except Exception:
+            logging.exception("Ошибка при запуске мониторинга")
+            show_error(f"Ошибка при запуске мониторинга:\n{traceback.format_exc()}")
+
+    def stop_action(self, icon=None, menu_item=None):
+        """Останавливает мониторинг безопасно (без зависаний потоков)."""
+        try:
+            if not self.is_running:
+                logging.info("Мониторинг уже остановлен.")
+                return
+
+            def _stop_observer():
+                try:
+                    logging.info("Остановка наблюдателя...")
+                    if self.observer:
+                        self.observer.stop()
+                        self.observer.join(timeout=3)
+                    self.is_running = False
+                    self.icon.title = 'GeoOffice Мониторинг остановлен'
+                    self._update_menu()
+                    logging.info("Мониторинг успешно остановлен.")
+                except Exception:
+                    logging.exception("Ошибка при остановке наблюдателя")
+                    show_error(f"Ошибка при остановке наблюдателя:\n{traceback.format_exc()}")
+                finally:
+                    # После остановки обнуляем observer — чтобы можно было безопасно пересоздать
+                    self.observer = None
+
+            threading.Thread(target=_stop_observer, daemon=True).start()
+
+        except Exception:
+            logging.exception("Ошибка при остановке мониторинга")
+            show_error(f"Ошибка при остановке мониторинга:\n{traceback.format_exc()}")
 
     def settings_action(self, icon, menu_item):
         """Открывает окно настроек."""
         try:
             self._open_settings_window()
         except Exception as e:
-            logging.exception("Ошибка при открытии окна настроек")
+            logging.exception(f"Ошибка при открытии окна настроек:\n{traceback.format_exc()}")
+            show_error(f"Ошибка при открытии окна настроек:\n{traceback.format_exc()}")
 
     def exit_action(self, icon, menu_item):
         try:
@@ -140,46 +304,37 @@ class GeoOfficeProjectSyncTrayApp:
             self._stop_event.set()
             self.icon.stop()
         except Exception as e:
-            logging.exception("Ошибка при выходе из приложения")
+            logging.exception(f"Ошибка при выходе из приложения:\n{traceback.format_exc()}")
+            show_error(f"Ошибка при выходе из приложения:\n{traceback.format_exc()}")
 
-    # --- Цикл синхронизации -------------------------------------------------
+    def synchronization(self):
+        """Запускает синхронизацию в фоновом потоке"""
 
-    def _start_sync_loop(self):
-        """Запускает фоновый поток для периодической синхронизации."""
-        def sync_loop():
-            while not self._stop_event.is_set():
-                try:
-                    self._run_sync_projects()
-                except Exception as e:
-                    logging.exception("Ошибка во время синхронизации проектов")
-                # Ждём указанное количество минут
-                if not self._stop_event.wait(self.sync_period * 60):
-                    continue
-                else:
-                    break
+        def _synchronization():
+            """Процесс синхронизации."""
+            if (not self.server_path) or (not self.database_path):
+                logging.warning("Сервер или база данных не заданы. Синхронизация не выполнена.")
+                show_error("Сервер или база данных не заданы. Синхронизация не выполнена.")
+                return
 
-        self._sync_thread = threading.Thread(target=sync_loop, daemon=True)
+            old_title = self.icon.title
+            self.icon.title = 'GeoOffice Синхронизация...'
+
+            logging.info(f"Выполняется синхронизация с сервером: {self.server_path}")
+            projects_from_db = self.db.get_all_projects()
+            projects_from_fs = self._scan_files(path=Path(self.server_path) / self.db.get_project_dir(),
+                                                template_exc_path=self.db.get_template_dir())
+            self._sync_projects(projects_from_db, projects_from_fs)
+
+            self.icon.title = old_title
+            logging.info("Синхронизация завершена успешно.")
+
+        self._sync_thread = threading.Thread(target=_synchronization, name="GeoOffice synchronization", daemon=True)
         self._sync_thread.start()
 
-    def _run_sync_projects(self):
-        """Заглушка для процесса синхронизации (сюда добавить реальную логику)."""
-        if (not self.server_path) or (not self.database_path):
-            logging.warning("Сервер или база данных не заданы. Синхронизация пропущена.")
-            return
-
-        logging.info(f"Выполняется синхронизация с сервером: {self.server_path}")
-        # Здесь будет логика синхронизации проектов
-        db = Database(Path(self.server_path) / self.database_path)
-        self.sync_period = db.get_period()
-        projects_from_db = db.get_all_projects()
-        projects_from_fs = self._scan_files(path=Path(self.server_path) / db.get_project_dir(),
-                                            template_exc_path=db.get_template_dir())
-        self._sync_projects(projects_from_db, projects_from_fs)
-        logging.info("Синхронизация завершена успешно.")
-
-    def _scan_files(self, path: Path|str, template_exc_path: Path|str) -> dict[str, str]:
+    def _scan_files(self, path: Path | str, template_exc_path: Path | str) -> dict[str, str]:
         result = {}
-        for file in path.rglob(".geo_office_project"):
+        for file in path.rglob(PROJECT_FILE_NAME):
             if file.parent == path / template_exc_path:
                 continue
             with file.open("r", encoding="utf-8") as f:
@@ -200,8 +355,8 @@ class GeoOfficeProjectSyncTrayApp:
             # Получаем путь к папке проектов из настроек БД
             db = Database(Path(self.server_path) / self.database_path)
             project_dir = db.get_project_dir()
-            project_path = Path(self.server_path) / project_dir / path / ".geo_office_project"
-            
+            project_path = Path(self.server_path) / project_dir / path / PROJECT_FILE_NAME
+
             with project_path.open("w", encoding="utf-8") as f:
                 f.write(uid)
             logging.debug(f"UID {uid} записан в файл {project_path}")
@@ -222,21 +377,21 @@ class GeoOfficeProjectSyncTrayApp:
         3. Для файлов без UID - создаем новый проект с новым UID
         """
         db = Database(Path(self.server_path) / self.database_path)
-        
+
         # Собираем все UID из БД и файлов
         db_uids = set()
         file_uids = set()
-        
+
         # UID из БД
         for path, uid in in_database.items():
             if self._is_uid(uid):
                 db_uids.add(uid)
-        
+
         # UID из файлов
         for path, uid in in_files.items():
             if self._is_uid(uid):
                 file_uids.add(uid)
-        
+
         # Обрабатываем UID, которые есть и в БД, и в файлах
         common_uids = db_uids & file_uids
         for uid in common_uids:
@@ -244,17 +399,17 @@ class GeoOfficeProjectSyncTrayApp:
                 # Находим путь в БД и в файлах для этого UID
                 db_path = None
                 file_path = None
-                
+
                 for path, path_uid in in_database.items():
                     if path_uid == uid:
                         db_path = path
                         break
-                
+
                 for path, path_uid in in_files.items():
                     if path_uid == uid:
                         file_path = path
                         break
-                
+
                 if db_path and file_path:
                     if db_path != file_path:
                         # Пути не совпадают - обновляем путь в БД
@@ -263,11 +418,11 @@ class GeoOfficeProjectSyncTrayApp:
                     else:
                         # Всё синхронизировано
                         logging.debug(f"Проект {uid} уже синхронизирован")
-                        
+
             except Exception as e:
                 logging.exception(f"Ошибка при синхронизации UID {uid}: {e}")
                 continue
-        
+
         # Обрабатываем UID, которые есть только в БД
         db_only_uids = db_uids - file_uids
         for uid in db_only_uids:
@@ -275,11 +430,11 @@ class GeoOfficeProjectSyncTrayApp:
                 # UID есть только в БД - помечаем как удаленный (файла нет в доступных)
                 db.mark_project_as_deleted(uid)
                 logging.info(f"Проект помечен как удаленный (файл не найден): {uid}")
-                    
+
             except Exception as e:
                 logging.exception(f"Ошибка при обработке UID только в БД {uid}: {e}")
                 continue
-        
+
         # Обрабатываем UID, которые есть только в файлах
         file_only_uids = file_uids - db_uids
         for uid in file_only_uids:
@@ -290,16 +445,16 @@ class GeoOfficeProjectSyncTrayApp:
                     if path_uid == uid:
                         file_path = path
                         break
-                
+
                 if file_path:
                     # Создаем новый проект
                     db.create_project(file_path, uid)
                     logging.info(f"Добавлен новый проект в БД: {file_path} (UID: {uid})")
-                    
+
             except Exception as e:
                 logging.exception(f"Ошибка при обработке UID только в файлах {uid}: {e}")
                 continue
-        
+
         # Обрабатываем файлы без UID
         for path, uid in in_files.items():
             if not self._is_uid(uid):
@@ -309,7 +464,7 @@ class GeoOfficeProjectSyncTrayApp:
                     self._add_uid_to_file(path, new_uid)
                     db.create_project(path, new_uid)
                     logging.info(f"Создан новый проект: {path} (UID: {new_uid})")
-                    
+
                 except Exception as e:
                     logging.exception(f"Ошибка при создании нового проекта {path}: {e}")
                     continue
@@ -318,8 +473,9 @@ class GeoOfficeProjectSyncTrayApp:
 
     def _create_menu(self):
         return (
-            item('Старт', self.start_action, enabled=not self.is_running),
-            item('Стоп', self.stop_action, enabled=self.is_running),
+            item('Запустить мониторинг', self.start_action, enabled=not self.is_running),
+            item('Остановить мониторинг', self.stop_action, enabled=self.is_running),
+            item('Синхронизировать', self.synchronization),
             item('Настройки', self.settings_action),
             item('Выход', self.exit_action)
         )
@@ -332,6 +488,7 @@ class GeoOfficeProjectSyncTrayApp:
 
     def _open_settings_window(self):
         """Создает и показывает окно настроек."""
+
         def browse_folder():
             path = filedialog.askdirectory(title="Выберите папку с проектами")
             if path:
@@ -405,7 +562,7 @@ class GeoOfficeProjectSyncTrayApp:
 
 
 class Database:
-    def __init__(self, path: Path|str):
+    def __init__(self, path: Path | str):
         """
         Инициализация моделей базы данных.
         :param db: Экземпляр базы данных Pony ORM
@@ -417,6 +574,7 @@ class Database:
 
     def _define_models(self) -> Any:
         """Определение моделей таблиц базы данных"""
+
         class ProjectTable(self.db.Entity):
             """
             Модель таблицы проектов.
@@ -425,8 +583,8 @@ class Database:
             _table_ = "Объекты"
             id = PrimaryKey(int, auto=True)
             name = Required(str)  # Название проекта
-            path = Required(str)    # Путь к папке проекта
-            uid = Required(str)     # Уникальный идентификатор
+            path = Required(str)  # Путь к папке проекта
+            uid = Required(str)  # Уникальный идентификатор
             status = Required(str, default="active")  # Статус проекта: active, deleted
             created_date = Required(datetime, default=datetime.now)
             modified_date = Required(datetime, default=datetime.now)
@@ -440,17 +598,12 @@ class Database:
             project_dir = Optional(str, nullable=False)     # путь к папке объектов относительно файлового сервера
             template_project_dir = Optional(str, nullable=False)    # путь к папке шаблона объектов относительно
                                                                     # файлового сервера
-            period_sync_project = Optional(int, nullable=True)  # период синхронизации в минутах
 
         class Models:
             Project = ProjectTable
             Settings = SettingsTable
 
         return Models
-
-    @db_session
-    def get_period(self) -> int:
-        return self.models.Settings[1].period_sync_project
 
     @db_session
     def get_project_dir(self) -> str:
