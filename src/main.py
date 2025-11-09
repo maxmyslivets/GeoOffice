@@ -4,6 +4,7 @@ from pathlib import Path
 
 import flet as ft
 
+from services.file_monitor_service import FileMonitorService
 from utils.logger_config import setup_logging, get_logger, log_exception
 from utils.monitor import correct_window_position
 
@@ -67,6 +68,7 @@ class GeoOfficeApp:
         self.status_bar = StatusBar(self)
 
         self.background_service = BackgroundService(self)
+
         # Новый раннер диалогов прогресса
         self.background_dialog_runner = BackgroundDialogRunner(self)
 
@@ -77,6 +79,11 @@ class GeoOfficeApp:
         # Инициализация базы данных
         self.database_service = DatabaseService(
             Path(self.settings.paths.file_server) / self.settings.paths.database_path)
+
+        self._file_monitor_service = FileMonitorService(
+            self._page_update,
+            Path(self.settings.paths.file_server) / self.settings.paths.database_path
+        ).start_monitoring()
 
         logger.info("Приложение инициализировано")
 
@@ -168,6 +175,11 @@ class GeoOfficeApp:
             updater.show_update_dialog(self.page)
         except Exception as e:
             self.show_error(e)
+
+    @log_exception
+    def _page_update(self):
+        logger.debug("Обновление страницы")
+        self.page.update()
 
     @log_exception
     def create_menu(self):
